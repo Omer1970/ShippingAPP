@@ -1,0 +1,509 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+  
+jobs:
+  # Backend Testing and Analysis
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shipmentapp_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_pgsql, redis
+        coverage: xdebug
+    
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+    
+    - name: Copy .env
+      run: |
+        cd backend
+        cp .env.example .env
+        php artisan key:generate
+    
+    - name: Set up database
+      run: |
+        cd backend
+        php artisan migrate
+        php artisan db:seed
+      env:
+        DB_CONNECTION: pgsql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 5432
+        DB_DATABASE: shipmentapp_test
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+    
+    - name: Run tests
+      run: |
+        cd backend
+        php artisan test --coverage-clover=coverage.xml
+      env:
+        DB_CONNECTION: pgsql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 5432
+        DB_DATABASE: shipmentapp_test
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+        REDIS_HOST: 127.0.0.1
+        REDIS_PORT: 6379
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+    
+    - name: Run PHPStan
+      run: |
+        cd backend
+        ./vendor/bin/phpstan analyse --error-format=github
+    
+    - name: Run PHP CS Fixer
+      run: |
+        cd backend
+        ./vendor/bin/php-cs-fixer fix --dry-run --diff --format=checkstyle | tee php-cs-fixer-report.xml
+      continue-on-error: true
+    
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: backend
+
+  # Frontend Testing and Analysis
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run linting
+      run: |
+        cd frontend
+        npm run lint
+    
+    - name: Run tests
+      run: |
+        cd frontend
+        npm run test:ci
+    
+    - name: Run e2e tests
+      run: |
+        cd frontend
+        npm run e2e:ci
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build -- --configuration production
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+    
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: frontend
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-dist
+        path: frontend/dist/
+        retention-days: 7
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: OWASP ZAP Scan
+      uses: zaproxy/action-full-scan@v0.4.0
+      with:
+        target: 'http://localhost:4200'
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+    
+    - name: Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'ShipmentApp'
+        path: '.'
+        format: 'ALL'
+    
+    - name: Upload dependency check results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: reports/
+
+  # Build and Push Docker Images
+  build-images:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata (backend)
+      id: meta-backend
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Extract metadata (frontend)
+      id: meta-frontend
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build and push backend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+    
+    - name: Build and push frontend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  # Deploy to Staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Configure SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to staging
+      run: |
+        ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+          cd /home/deploy/shipmentapp
+          git pull origin develop
+          export DB_PASSWORD="${{ secrets.STAGING_DB_PASSWORD }}"
+          export GRAFANA_PASSWORD="${{ secrets.STAGING_GRAFANA_PASSWORD }}"
+          docker-compose -f docker-compose.staging.yml pull
+          docker-compose -f docker-compose.staging.yml up -d --build
+          docker-compose -f docker-compose.staging.yml exec -T backend php artisan migrate --force
+          docker-compose -f docker-compose.staging.yml exec -T backend php artisan cache:clear
+          docker-compose -f docker-compose.staging.yml exec -T backend php artisan config:cache
+          docker-compose -f docker-compose.staging.yml exec -T backend php artisan route:cache
+          docker-compose -f docker-compose.staging.yml exec -T backend php artisan view:cache
+          docker system prune -f
+        EOF
+    
+    - name: Run smoke tests
+      run: |
+        sleep 30
+        curl -f https://staging.shipmentapp.com/health || exit 1
+        curl -f https://staging.shipmentapp.com/api/health || exit 1
+    
+    - name: Notify deployment status
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Deploy to Production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.event_name == 'release'
+    environment: production
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Configure SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Create backup before deployment
+      run: |
+        ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+          cd /home/deploy/shipmentapp
+          ./scripts/backup-database.sh
+          ./scripts/backup-application.sh
+        EOF
+    
+    - name: Deploy to production
+      run: |
+        ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+          cd /home/deploy/shipmentapp
+          git fetch --all --tags
+          git checkout tags/${{ github.event.release.tag_name }}
+          export DB_PASSWORD="${{ secrets.PRODUCTION_DB_PASSWORD }}"
+          export GRAFANA_PASSWORD="${{ secrets.PRODUCTION_GRAFANA_PASSWORD }}"
+          docker-compose pull
+          docker-compose up -d --build
+          docker-compose exec -T backend php artisan migrate --force
+          docker-compose exec -T backend php artisan cache:clear
+          docker-compose exec -T backend php artisan config:cache
+          docker-compose exec -T backend php artisan route:cache
+          docker-compose exec -T backend php artisan view:cache
+          docker system prune -f
+        EOF
+    
+    - name: Run production smoke tests
+      run: |
+        sleep 60
+        curl -f https://shipmentapp.com/health || exit 1
+        curl -f https://api.shipmentapp.com/health || exit 1
+        curl -f https://shipmentapp.com/api/health || exit 1
+    
+    - name: Notify deployment status
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        text: |
+          Production deployment ${{ job.status }} for ${{ github.event.release.tag_name }}
+          Release: ${{ github.event.release.html_url }}
+          Author: ${{ github.event.release.author.login }}
+
+  # Performance Testing
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install k6
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+    
+    - name: Run load tests
+      run: |
+        k6 run --summary-trend-stats="avg,min,med,max,p(95),p(99)" tests/performance/load-test.js
+      env:
+        BASE_URL: https://staging.shipmentapp.com
+    
+    - name: Run stress tests
+      run: |
+        k6 run tests/performance/stress-test.js
+      env:
+        BASE_URL: https://staging.shipmentapp.com
+    
+    - name: Run spike tests
+      run: |
+        k6 run tests/performance/spike-test.js
+      env:
+        BASE_URL: https://staging.shipmentapp.com
+
+  # Cleanup
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Clean up old images
+      run: |
+        # Keep only last 5 tagged images
+        echo "Cleaning up old container images..."
+        # This would typically be run on the deployment server
+        # docker image prune -a -f --filter "until=168h"
+    
+    - name: Clean up workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        repository: ${{ github.repository }}
+        retain_days: 30
+        keep_minimum_runs: 10
+
+# Workflow-level permissions
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: write
+
+# Environment variables
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  PHP_VERSION: 8.2
+  NODE_VERSION: 18
+  POSTGRES_VERSION: 15
+  REDIS_VERSION: 7
+
+# Concurrency control
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Secrets required:
+# - STAGING_SSH_KEY
+# - STAGING_HOST
+# - STAGING_USER
+# - STAGING_DB_PASSWORD
+# - STAGING_GRAFANA_PASSWORD
+# - PRODUCTION_SSH_KEY
+# - PRODUCTION_HOST
+# - PRODUCTION_USER
+# - PRODUCTION_DB_PASSWORD
+# - PRODUCTION_GRAFANA_PASSWORD
+# - SLACK_WEBHOOK
+# - SONAR_TOKEN
+# - CODECOV_TOKEN

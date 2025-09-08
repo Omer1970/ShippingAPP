@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(md-tree explode:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(/home/remo/codebase/ShipmentApp/.claude/commands/BMad/agents/sm.md /home/remo/codebase/ShipmentApp/docs/stories/story-001-user-authentication.md)",
+      "Bash(npx:*)",
+      "Bash(./validate-deployment.sh:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
