@@ -15,12 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
             $table->enum('role', ['driver', 'warehouse', 'admin'])->default('driver');
-            $table->integer('dolibarr_user_id')->nullable();
+            $table->integer('dolibarr_user_id')->nullable()->unique();
             $table->boolean('is_active')->default(true);
-            $table->rememberToken();
             $table->timestamps();
             
             // Indexes for performance

@@ -4,61 +4,71 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
-use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\DolibarrAuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private DolibarrAuthService $dolibarrAuth
+    ) {}
+
     /**
-     * Handle user login request.
+     * Handle user login via Dolibarr authentication.
      */
     public function login(LoginRequest $request)
     {
         try {
-            $user = User::where('email', $request->email)->first();
+            // Authenticate against Dolibarr
+            $dolibarrUser = $this->dolibarrAuth->authenticate(
+                $request->email,
+                $request->password
+            );
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            if (!$dolibarrUser) {
                 throw ValidationException::withMessages([
-                    'email' => ['The provided credentials are incorrect.'],
+                    'email' => ['Invalid Dolibarr credentials.'],
                 ]);
             }
+
+            // Get or create local user with Dolibarr data
+            $user = User::firstOrCreate(
+                ['dolibarr_user_id' => $dolibarrUser['id']],
+                [
+                    'name' => $dolibarrUser['name'],
+                    'email' => $dolibarrUser['email'],
+                    'role' => $this->mapDolibarrRole($dolibarrUser['role']),
+                    'is_active' => true,
+                ]
+            );
 
             if (!$user->isActive()) {
                 throw ValidationException::withMessages([
-                    'email' => ['Your account has been deactivated.'],
+                    'email' => ['Account is deactivated.'],
                 ]);
             }
 
+            // Generate Sanctum token
             $token = $user->createToken($request->device_name)->plainTextToken;
-            $tokenExpiry = now()->addHours(config('sanctum.expiration') / 60);
 
             return response()->json([
-                'success' => true,
-                'data' => [
-                    'user' => new UserResource($user),
-                    'token' => $token,
-                    'expires_at' => $tokenExpiry->toISOString(),
+                'user' => [
+                    'id' => $user->id,
+                    'dolibarr_user_id' => $user->dolibarr_user_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
                 ],
-                'message' => 'Login successful',
+                'token' => $token,
             ]);
 
         } catch (ValidationException $e) {
             return response()->json([
-                'success' => false,
                 'message' => 'Authentication failed',
                 'errors' => $e->errors(),
             ], 401);
-        } catch (\Exception $e) {
-            \Log::error('Login error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred during authentication',
-                'errors' => ['general' => ['Please try again later.']],
-            ], 500);
         }
     }
 
@@ -67,32 +77,17 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        try {
-            $user = $request->user();
-            
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not authenticated',
-                ], 401);
-            }
+        $user = $request->user();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'user' => new UserResource($user),
-                ],
-                'message' => 'User profile retrieved successfully',
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('User profile error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while retrieving user profile',
-                'errors' => ['general' => ['Please try again later.']],
-            ], 500);
-        }
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'dolibarr_user_id' => $user->dolibarr_user_id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+        ]);
     }
 
     /**
@@ -100,71 +95,22 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        try {
-            $user = $request->user();
-            
-            if ($user) {
-                // Revoke all tokens for the user
-                $user->tokens()->delete();
-            }
+        $request->user()->currentAccessToken()->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Logout successful',
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Logout error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred during logout',
-                'errors' => ['general' => ['Please try again later.']],
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Logout successful',
+        ]);
     }
 
     /**
-     * Refresh authentication token.
+     * Map Dolibarr role to ShipmentApp role.
      */
-    public function refresh(Request $request)
+    private function mapDolibarrRole(?string $dolibarrRole): string
     {
-        try {
-            $user = $request->user();
-            
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not authenticated',
-                ], 401);
-            }
-
-            // Revoke current token
-            $currentToken = $request->user()->currentAccessToken();
-            if ($currentToken) {
-                $currentToken->delete();
-            }
-
-            // Create new token
-            $token = $user->createToken('refreshed_token')->plainTextToken;
-            $tokenExpiry = now()->addHours(config('sanctum.expiration') / 60);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'user' => new UserResource($user),
-                    'token' => $token,
-                    'expires_at' => $tokenExpiry->toISOString(),
-                ],
-                'message' => 'Token refreshed successfully',
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Token refresh error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while refreshing token',
-                'errors' => ['general' => ['Please try again later.']],
-            ], 500);
-        }
+        return match ($dolibarrRole) {
+            'admin', 'superadmin' => 'admin',
+            'warehouse_manager', 'logistics' => 'warehouse',
+            default => 'driver',
+        };
     }
 }

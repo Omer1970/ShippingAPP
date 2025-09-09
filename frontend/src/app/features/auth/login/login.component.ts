@@ -23,7 +23,7 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private authService: AuthService,
+    public authService: AuthService,
     private router: Router,
     private route: ActivatedRoute
   ) {}
@@ -63,7 +63,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   onSubmit(): void {
     if (this.loginForm.valid) {
       this.error = null;
-      const credentials = this.loginForm.value;
+      const credentials = {
+        ...this.loginForm.value,
+        device_name: this.getDeviceName()
+      };
       
       this.authService.login(credentials)
         .pipe(takeUntil(this.destroy$))
@@ -73,6 +76,9 @@ export class LoginComponent implements OnInit, OnDestroy {
           },
           error: (error) => {
             this.error = error.message;
+            if (!error.isDolibarrConnected) {
+              this.error += ' Please contact support if the issue persists.';
+            }
           }
         });
     } else {
@@ -108,5 +114,16 @@ export class LoginComponent implements OnInit, OnDestroy {
       return 'Password must be at least 6 characters long';
     }
     return '';
+  }
+
+  private getDeviceName(): string {
+    const userAgent = navigator.userAgent;
+    if (userAgent.includes('Mobile')) {
+      return 'Mobile Browser';
+    } else if (userAgent.includes('Tablet')) {
+      return 'Tablet Browser';
+    } else {
+      return 'Desktop Browser';
+    }
   }
 }

@@ -20,7 +20,7 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(private authService: AuthService) {}
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    const token = this.authService.getAccessToken();
+    const token = this.authService.getToken();
     
     if (token) {
       request = this.addToken(request, token);
@@ -51,10 +51,16 @@ export class AuthInterceptor implements HttpInterceptor {
       this.refreshTokenSubject.next(null);
 
       return this.authService.refreshToken().pipe(
-        switchMap((response: any) => {
+        switchMap(() => {
           this.isRefreshing = false;
-          this.refreshTokenSubject.next(response.access_token);
-          return next.handle(this.addToken(request, response.access_token));
+          const newToken = this.authService.getToken();
+          if (newToken) {
+            this.refreshTokenSubject.next(newToken);
+            return next.handle(this.addToken(request, newToken));
+          } else {
+            this.authService.logout().subscribe();
+            return throwError(() => new Error('Failed to refresh token'));
+          }
         }),
         catchError((err) => {
           this.isRefreshing = false;

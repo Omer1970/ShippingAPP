@@ -1,67 +1,46 @@
-version: '3.8'
-
 services:
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: shipmentapp_nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-      - ./frontend/dist:/var/www/html:ro
-      - ./backend/public:/var/www/backend/public:ro
-      - ./logs/nginx:/var/log/nginx
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # Laravel Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: shipmentapp_backend
+    ports:
+      - "8080:80"
     volumes:
       - ./backend:/var/www/html
       - ./backend/storage:/var/www/html/storage
       - ./backend/bootstrap/cache:/var/www/html/bootstrap/cache
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8080
       - DB_CONNECTION=pgsql
       - DB_HOST=db
       - DB_PORT=5432
       - DB_DATABASE=shipmentapp
       - DB_USERNAME=shipmentapp
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=shipmentapp123
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - QUEUE_CONNECTION=redis
+      - QUEUE_CONNECTION=sync
       - SESSION_DRIVER=redis
       - CACHE_DRIVER=redis
+      - SANCTUM_STATEFUL_DOMAINS=localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1
+      - AUTH_TOKEN_EXPIRY=24
+      - AUTH_RATE_LIMIT=60
+      # Dolibarr Connection
+      - DOLIBARR_DB_HOST=${DOLIBARR_DB_HOST:-localhost}
+      - DOLIBARR_DB_PORT=${DOLIBARR_DB_PORT:-3306}
+      - DOLIBARR_DB_DATABASE=${DOLIBARR_DB_DATABASE:-dolibarr}
+      - DOLIBARR_DB_USERNAME=${DOLIBARR_DB_USERNAME:-readonly}
+      - DOLIBARR_DB_PASSWORD=${DOLIBARR_DB_PASSWORD:-}
     depends_on:
       - db
       - redis
     networks:
       - shipmentapp-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   # Angular Frontend
   frontend:
@@ -69,18 +48,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: shipmentapp_frontend
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
     depends_on:
       - backend
     networks:
       - shipmentapp-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # PostgreSQL Database
   db:
@@ -89,22 +63,14 @@ services:
     environment:
       - POSTGRES_DB=shipmentapp
       - POSTGRES_USER=shipmentapp
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+      - POSTGRES_PASSWORD=shipmentapp123
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d:ro
-      - ./backups:/backups
     ports:
       - "5432:5432"
     networks:
       - shipmentapp-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U shipmentapp -d shipmentapp"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # Redis Cache
   redis:
@@ -118,190 +84,11 @@ services:
     networks:
       - shipmentapp-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Queue Worker
-  queue-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: shipmentapp_queue
-    command: php artisan queue:work --sleep=3 --tries=3 --timeout=60
-    volumes:
-      - ./backend:/var/www/html
-      - ./backend/storage:/var/www/html/storage
-      - ./backend/bootstrap/cache:/var/www/html/bootstrap/cache
-    environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=shipmentapp
-      - DB_USERNAME=shipmentapp
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - QUEUE_CONNECTION=redis
-    depends_on:
-      - db
-      - redis
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-    deploy:
-      replicas: 2
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-
-  # Scheduler
-  scheduler:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: shipmentapp_scheduler
-    command: /bin/sh -c "while true; do php artisan schedule:run; sleep 60; done"
-    volumes:
-      - ./backend:/var/www/html
-      - ./backend/storage:/var/www/html/storage
-      - ./backend/bootstrap/cache:/var/www/html/bootstrap/cache
-    environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=shipmentapp
-      - DB_USERNAME=shipmentapp
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - db
-      - redis
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-
-  # Monitoring - Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: shipmentapp_prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-
-  # Monitoring - Grafana
-  grafana:
-    image: grafana/grafana:latest
-    container_name: shipmentapp_grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    depends_on:
-      - prometheus
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-
-  # Log Management - ELK Stack (Optional)
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
-    container_name: shipmentapp_elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.5.0
-    container_name: shipmentapp_kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.5.0
-    container_name: shipmentapp_logstash
-    volumes:
-      - ./monitoring/logstash/pipeline:/usr/share/logstash/pipeline:ro
-    ports:
-      - "5044:5044"
-    environment:
-      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
-    depends_on:
-      - elasticsearch
-    networks:
-      - shipmentapp-network
-    restart: unless-stopped
 
 networks:
   shipmentapp-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  elasticsearch_data:
-    driver: local
-
-# Production overrides
-x-production:
-  &production
-  restart_policy:
-    condition: any
-    delay: 5s
-    max_attempts: 3
-    window: 120s
-  deploy:
-    resources:
-      limits:
-        cpus: '2.0'
-        memory: 2G
-      reservations:
-        cpus: '1.0'
-        memory: 1G

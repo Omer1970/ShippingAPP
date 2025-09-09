@@ -1,0 +1,48 @@
+# Simple Docker Compose for testing - just database and cache
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: shipmentapp_db
+    environment:
+      - POSTGRES_DB=shipmentapp
+      - POSTGRES_USER=shipmentapp
+      - POSTGRES_PASSWORD=shipmentapp123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - shipmentapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipmentapp -d shipmentapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: shipmentapp_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - shipmentapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  shipmentapp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

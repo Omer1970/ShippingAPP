@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Observable } from 'rxjs';
 
 import { AuthGuard } from './auth.guard';
 import { AuthService } from '../services';
@@ -13,8 +13,11 @@ describe('AuthGuard', () => {
 
   const mockUser: User = {
     id: 1,
+    dolibarr_user_id: 123,
     name: 'Test User',
     email: 'test@example.com',
+    role: 'driver',
+    is_active: true,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-01T00:00:00Z'
   };
@@ -26,10 +29,11 @@ describe('AuthGuard', () => {
     const authServiceSpy = jasmine.createSpyObj('AuthService', [''], {
       authState$: of({
         user: null,
-        accessToken: null,
+        token: null,
         isAuthenticated: false,
         isLoading: false,
-        error: null
+        error: null,
+        isDolibarrConnected: true
       })
     });
 
@@ -56,10 +60,11 @@ describe('AuthGuard', () => {
     it('should return true when user is authenticated', (done) => {
       authServiceMock.authState$ = of({
         user: mockUser,
-        accessToken: 'test-token',
+        token: 'test-token',
         isAuthenticated: true,
         isLoading: false,
-        error: null
+        error: null,
+        isDolibarrConnected: true
       });
 
       const result = guard.canActivate(mockRoute, mockRouterState);

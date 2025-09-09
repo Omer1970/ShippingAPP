@@ -3,6 +3,7 @@
     <div class="login-header">
       <h2>Login</h2>
       <p class="subtitle">Please sign in to your account</p>
+      <p class="dolibarr-info">Using Dolibarr ERP credentials</p>
     </div>
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
@@ -42,7 +43,16 @@
 
       <!-- Error Message -->
       <div *ngIf="error" class="alert alert-danger">
-        {{ error }}
+        <div *ngIf="authService.authState$ | async as authState">
+          <strong *ngIf="!authState.isDolibarrConnected">Dolibarr Connection Error:</strong>
+          <span>{{ error }}</span>
+          <div *ngIf="!authState.isDolibarrConnected" class="mt-2">
+            <small class="text-muted">
+              This may be a temporary issue with the Dolibarr ERP system.
+              Please try again in a few minutes or contact support.
+            </small>
+          </div>
+        </div>
       </div>
 
       <!-- Submit Button -->
@@ -60,7 +70,8 @@
     </form>
 
     <div class="login-footer">
-      <p>Don't have an account? <a href="#" class="link">Sign up here</a></p>
+      <p>ShipmentApp Authentication System</p>
+      <p class="text-muted">Powered by Dolibarr ERP Integration</p>
     </div>
   </div>
 </div>

@@ -4,7 +4,8 @@ import { BehaviorSubject, Observable, throwError, timer } from 'rxjs';
 import { catchError, map, tap, switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
-import { User, AuthResponse, LoginCredentials, RefreshTokenResponse, AuthState } from '../models';
+import { User } from '../models/user.model';
+import { LoginResponse, LoginCredentials, AuthState } from '../models/auth.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -17,10 +18,11 @@ export class AuthService {
   
   private authStateSubject = new BehaviorSubject<AuthState>({
     user: null,
-    accessToken: null,
+    token: null,
     isAuthenticated: false,
     isLoading: false,
-    error: null
+    error: null,
+    isDolibarrConnected: true
   });
   
   public authState$ = this.authStateSubject.asObservable();
@@ -41,10 +43,11 @@ export class AuthService {
     if (token && user) {
       this.updateAuthState({
         user,
-        accessToken: token,
+        token: token,
         isAuthenticated: true,
         isLoading: false,
-        error: null
+        error: null,
+        isDolibarrConnected: true
       });
     }
   }
@@ -90,10 +93,10 @@ export class AuthService {
     }
   }
 
-  login(credentials: LoginCredentials): Observable<AuthResponse> {
+  login(credentials: LoginCredentials): Observable<LoginResponse> {
     this.updateAuthState({ isLoading: true, error: null });
     
-    return this.http.post<AuthResponse>(`${this.API_URL}/login`, credentials).pipe(
+    return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap(response => {
         this.handleAuthSuccess(response);
       }),
@@ -121,16 +124,15 @@ export class AuthService {
     );
   }
 
-  refreshToken(): Observable<RefreshTokenResponse> {
-    return this.http.post<RefreshTokenResponse>(`${this.API_URL}/refresh`, {}).pipe(
+  refreshToken(): Observable<{ user: User }> {
+    return this.http.post<{ user: User }>(`${this.API_URL}/refresh`, {}).pipe(
       tap(response => {
-        const currentUser = this.authStateSubject.value.user;
-        if (currentUser) {
-          this.handleAuthSuccess({
-            user: currentUser,
-            access_token: response.access_token,
-            token_type: response.token_type,
-            expires_in: response.expires_in
+        const currentToken = this.getStoredToken();
+        if (currentToken) {
+          this.updateAuthState({
+            user: response.user,
+            isAuthenticated: true,
+            error: null
           });
         }
       }),
@@ -155,47 +157,56 @@ export class AuthService {
     return this.authStateSubject.value.user;
   }
 
-  getAccessToken(): string | null {
-    return this.authStateSubject.value.accessToken;
+  getToken(): string | null {
+    return this.authStateSubject.value.token;
   }
 
-  private handleAuthSuccess(response: AuthResponse): void {
+  private handleAuthSuccess(response: LoginResponse): void {
     this.storeAuthData(response.access_token, response.user);
     this.updateAuthState({
       user: response.user,
-      accessToken: response.access_token,
+      token: response.access_token,
       isAuthenticated: true,
-      error: null
+      error: null,
+      isDolibarrConnected: true
     });
-    this.scheduleTokenRefresh(response.expires_in);
   }
 
   private handleLogout(): void {
     this.clearAuthData();
-    this.cancelTokenRefresh();
     this.updateAuthState({
       user: null,
-      accessToken: null,
+      token: null,
       isAuthenticated: false,
-      error: null
+      error: null,
+      isDolibarrConnected: true
     });
     this.router.navigate(['/login']);
   }
 
   private handleAuthError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'An error occurred';
+    let isDolibarrConnected = true;
     
     if (error.error?.message) {
       errorMessage = error.error.message;
+      if (errorMessage.toLowerCase().includes('dolibarr')) {
+        isDolibarrConnected = false;
+        errorMessage = 'Dolibarr connection failed. Please try again later.';
+      }
     } else if (error.status === 401) {
-      errorMessage = 'Invalid credentials';
+      errorMessage = 'Invalid Dolibarr credentials';
     } else if (error.status === 422) {
       errorMessage = 'Validation error';
     } else if (error.status === 0) {
-      errorMessage = 'Network error';
+      errorMessage = 'Network error - Dolibarr connection failed';
+      isDolibarrConnected = false;
+    } else if (error.status === 500) {
+      errorMessage = 'Server error - Dolibarr integration issue';
+      isDolibarrConnected = false;
     }
     
-    this.updateAuthState({ error: errorMessage });
+    this.updateAuthState({ error: errorMessage, isDolibarrConnected });
     
     if (error.status === 401) {
       this.handleLogout();
@@ -204,7 +215,8 @@ export class AuthService {
     return throwError(() => ({
       message: errorMessage,
       errors: error.error?.errors,
-      status: error.status
+      status: error.status,
+      isDolibarrConnected
     }));
   }
 }

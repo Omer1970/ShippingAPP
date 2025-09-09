@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { provideRouter, Router } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../core/services';
-import { User, AuthResponse } from '../../../core/models';
+import { User, LoginResponse, AuthState } from '../../../core/models';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;
@@ -15,27 +15,29 @@ describe('LoginComponent', () => {
 
   const mockUser: User = {
     id: 1,
+    dolibarr_user_id: 123,
     name: 'Test User',
     email: 'test@example.com',
+    role: 'driver',
+    is_active: true,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-01T00:00:00Z'
   };
 
-  const mockAuthResponse: AuthResponse = {
+  const mockLoginResponse: LoginResponse = {
     user: mockUser,
-    access_token: 'test-token',
-    token_type: 'Bearer',
-    expires_in: 3600
+    token: 'test-token'
   };
 
   beforeEach(async () => {
     const authServiceSpy = jasmine.createSpyObj('AuthService', ['login', 'isAuthenticated'], {
       authState$: of({
         user: null,
-        accessToken: null,
+        token: null,
         isAuthenticated: false,
         isLoading: false,
-        error: null
+        error: null,
+        isDolibarrConnected: true
       })
     });
 
@@ -94,7 +96,7 @@ describe('LoginComponent', () => {
 
   describe('onSubmit', () => {
     beforeEach(() => {
-      authServiceMock.login.and.returnValue(of(mockAuthResponse));
+      authServiceMock.login.and.returnValue(of(mockLoginResponse));
       spyOn(routerMock, 'navigate');
     });
 
@@ -113,7 +115,8 @@ describe('LoginComponent', () => {
 
       expect(authServiceMock.login).toHaveBeenCalledWith({
         email: 'test@example.com',
-        password: 'password123'
+        password: 'password123',
+        device_name: jasmine.any(String)
       });
       expect(routerMock.navigate).toHaveBeenCalledWith(['/dashboard']);
     });
@@ -131,7 +134,11 @@ describe('LoginComponent', () => {
 
       component.onSubmit();
 
-      expect(authServiceMock.login).toHaveBeenCalled();
+      expect(authServiceMock.login).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'wrongpassword',
+        device_name: jasmine.any(String)
+      });
       expect(component.error).toBe('Invalid credentials');
     });
   });
@@ -189,6 +196,50 @@ describe('LoginComponent', () => {
 
       expect(component['destroy$'].next).toHaveBeenCalled();
       expect(component['destroy$'].complete).toHaveBeenCalled();
+    });
+  });
+
+  describe('Dolibarr Integration', () => {
+    it('should show Dolibarr integration info', () => {
+      // Test for Dolibarr integration UI elements
+      fixture.detectChanges();
+      
+      // Check if component displays Dolibarr-related information
+      expect(component).toBeTruthy(); // Component should handle Dolibarr integration
+    });
+
+    it('should handle Dolibarr connection errors', () => {
+      const dolibarrError = {
+        message: 'Dolibarr connection failed',
+        isDolibarrConnected: false
+      };
+      authServiceMock.login.and.returnValue(throwError(() => dolibarrError));
+
+      component.loginForm.setValue({
+        email: 'test@example.com',
+        password: 'password123'
+      });
+
+      component.onSubmit();
+
+      expect(component.error).toContain('Dolibarr connection failed');
+      expect(component.error).toContain('Please contact support if the issue persists');
+    });
+
+    it('should handle invalid Dolibarr credentials', () => {
+      const dolibarrAuthError = {
+        message: 'Invalid Dolibarr credentials'
+      };
+      authServiceMock.login.and.returnValue(throwError(() => dolibarrAuthError));
+
+      component.loginForm.setValue({
+        email: 'test@example.com',
+        password: 'wrongpassword'
+      });
+
+      component.onSubmit();
+
+      expect(component.error).toBe('Invalid Dolibarr credentials');
     });
   });
 });

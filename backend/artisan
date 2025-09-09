@@ -30,9 +30,9 @@ $app = require_once __DIR__.'/bootstrap/app.php';
 |
 */
 
-$kernel = $app-\u003emake(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 
-$status = $kernel-\u003ehandle(
+$status = $kernel->handle(
     $input = new Symfony\Component\Console\Input\ArgvInput,
     new Symfony\Component\Console\Output\ConsoleOutput
 );
@@ -48,6 +48,6 @@ $status = $kernel-\u003ehandle(
 |
 */
 
-$kernel-\u003eterminate($input, $status);
+$kernel->terminate($input, $status);
 
 exit($status);

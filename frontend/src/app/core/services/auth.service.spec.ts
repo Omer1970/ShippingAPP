@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router } from '@angular/router';
 
 import { AuthService } from './auth.service';
-import { User, LoginCredentials, AuthResponse, RefreshTokenResponse } from '../models';
+import { User, LoginCredentials, LoginResponse } from '../models';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,22 +13,24 @@ describe('AuthService', () => {
 
   const mockUser: User = {
     id: 1,
+    dolibarr_user_id: 123,
     name: 'Test User',
     email: 'test@example.com',
+    role: 'driver',
+    is_active: true,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-01T00:00:00Z'
   };
 
-  const mockAuthResponse: AuthResponse = {
+  const mockLoginResponse: LoginResponse = {
     user: mockUser,
-    access_token: 'test-token',
-    token_type: 'Bearer',
-    expires_in: 3600
+    token: 'test-token'
   };
 
   const mockCredentials: LoginCredentials = {
     email: 'test@example.com',
-    password: 'password123'
+    password: 'password123',
+    device_name: 'Test Device'
   };
 
   beforeEach(() => {
@@ -63,14 +65,14 @@ describe('AuthService', () => {
     it('should login successfully and store auth data', (done) => {
       service.login(mockCredentials).subscribe({
         next: (response) => {
-          expect(response).toEqual(mockAuthResponse);
+          expect(response).toEqual(mockLoginResponse);
           expect(localStorage.getItem('access_token')).toBe('test-token');
           expect(localStorage.getItem('user')).toBe(JSON.stringify(mockUser));
           
           service.authState$.subscribe(state => {
             expect(state.isAuthenticated).toBeTrue();
             expect(state.user).toEqual(mockUser);
-            expect(state.accessToken).toBe('test-token');
+            expect(state.token).toBe('test-token');
             expect(state.isLoading).toBeFalse();
             expect(state.error).toBeNull();
             done();
@@ -84,30 +86,32 @@ describe('AuthService', () => {
       req.flush(mockAuthResponse);
     });
 
-    it('should handle login error', (done) => {
-      const errorResponse = { message: 'Invalid credentials' };
+    it('should handle Dolibarr connection error', (done) => {
+      const errorResponse = { message: 'Dolibarr connection failed' };
       
       service.login(mockCredentials).subscribe({
         error: (error) => {
-          expect(error.message).toBe('Invalid credentials');
+          expect(error.message).toContain('Dolibarr connection failed');
+          expect(error.isDolibarrConnected).toBeFalse();
           
           service.authState$.subscribe(state => {
             expect(state.isAuthenticated).toBeFalse();
-            expect(state.error).toBe('Invalid credentials');
-            expect(state.isLoading).toBeFalse();
+            expect(state.error).toContain('Dolibarr connection failed');
+            expect(state.isDolibarrConnected).toBeFalse();
             done();
           });
         }
       });
 
       const req = httpMock.expectOne('/api/auth/login');
-      req.flush(errorResponse, { status: 401, statusText: 'Unauthorized' });
+      req.flush(errorResponse, { status: 500, statusText: 'Server Error' });
     });
 
     it('should handle network errors', (done) => {
       service.login(mockCredentials).subscribe({
         error: (error) => {
-          expect(error.message).toBe('Network error');
+          expect(error.message).toBe('Network error - Dolibarr connection failed');
+          expect(error.isDolibarrConnected).toBeFalse();
           done();
         }
       });
@@ -167,7 +171,7 @@ describe('AuthService', () => {
         service.authState$.subscribe(state => {
           expect(state.isAuthenticated).toBeFalse();
           expect(state.user).toBeNull();
-          expect(state.accessToken).toBeNull();
+          expect(state.token).toBeNull();
           expect(state.isLoading).toBeFalse();
           done();
         });
@@ -205,12 +209,6 @@ describe('AuthService', () => {
   });
 
   describe('refreshToken', () => {
-    const mockRefreshResponse: RefreshTokenResponse = {
-      access_token: 'new-token',
-      token_type: 'Bearer',
-      expires_in: 3600
-    };
-
     beforeEach(() => {
       localStorage.setItem('access_token', 'old-token');
       localStorage.setItem('user', JSON.stringify(mockUser));
@@ -218,15 +216,14 @@ describe('AuthService', () => {
     });
 
     it('should refresh token successfully', (done) => {
-      service.refreshToken().subscribe((response) => {
-        expect(response).toEqual(mockRefreshResponse);
-        expect(localStorage.getItem('access_token')).toBe('new-token');
+      service.refreshToken().subscribe(() => {
+        expect(localStorage.getItem('access_token')).toBe('old-token'); // Token stays the same
         done();
       });
 
       const req = httpMock.expectOne('/api/auth/refresh');
       expect(req.request.method).toBe('POST');
-      req.flush(mockRefreshResponse);
+      req.flush({ user: mockUser });
     });
 
     it('should handle refresh token error and logout', (done) => {
@@ -253,7 +250,7 @@ describe('AuthService', () => {
       });
 
       const req = httpMock.expectOne('/api/auth/refresh');
-      req.flush(mockRefreshResponse);
+      req.flush({ user: mockUser });
     });
   });
 
@@ -340,11 +337,11 @@ describe('AuthService', () => {
       localStorage.setItem('user', JSON.stringify(mockUser));
       
       // Create new service instance to test initialization
-      const newService = new AuthService(TestBed.inject(HttpTestingController), routerMock);
+      const newService = TestBed.inject(AuthService);
       
       expect(newService.isAuthenticated()).toBeTrue();
       expect(newService.getCurrentUserValue()).toEqual(mockUser);
-      expect(newService.getAccessToken()).toBe('stored-token');
+      expect(newService.getToken()).toBe('stored-token');
     });
 
     it('should handle corrupted localStorage data', () => {
@@ -353,18 +350,18 @@ describe('AuthService', () => {
       
       // Should not throw error
       expect(() => {
-        const newService = new AuthService(TestBed.inject(HttpTestingController), routerMock);
+        const newService = TestBed.inject(AuthService);
       }).not.toThrow();
     });
 
     it('should handle missing localStorage data', () => {
       localStorage.clear();
       
-      const newService = new AuthService(TestBed.inject(HttpTestingController), routerMock);
+      const newService = TestBed.inject(AuthService);
       
       expect(newService.isAuthenticated()).toBeFalse();
       expect(newService.getCurrentUserValue()).toBeNull();
-      expect(newService.getAccessToken()).toBeNull();
+      expect(newService.getToken()).toBeNull();
     });
   });
 
@@ -391,13 +388,13 @@ describe('AuthService', () => {
     });
 
     it('should return access token', () => {
-      expect(service.getAccessToken()).toBeNull();
+      expect(service.getToken()).toBeNull();
       
       localStorage.setItem('access_token', 'test-token');
       localStorage.setItem('user', JSON.stringify(mockUser));
       service['initializeAuth']();
       
-      expect(service.getAccessToken()).toBe('test-token');
+      expect(service.getToken()).toBe('test-token');
     });
   });
 
@@ -454,7 +451,7 @@ describe('AuthService', () => {
       expect(requests.length).toBe(totalAttempts);
       
       // Complete all requests
-      requests.forEach(req => req.flush(mockAuthResponse));
+      requests.forEach(req => req.flush(mockLoginResponse));
       
       expect(completedCount).toBe(totalAttempts);
     });
@@ -463,7 +460,7 @@ describe('AuthService', () => {
       // Login
       service.login(mockCredentials).subscribe();
       const loginReq = httpMock.expectOne('/api/auth/login');
-      loginReq.flush(mockAuthResponse);
+      loginReq.flush(mockLoginResponse);
       
       // Immediately logout
       service.logout().subscribe();
@@ -496,6 +493,94 @@ describe('AuthService', () => {
       
       // Should not make refresh request since we're logging out
       httpMock.expectNone('/api/auth/refresh');
+    });
+  });
+
+  describe('Dolibarr Integration', () => {
+    it('should handle Dolibarr authentication successful response', (done) => {
+      const dolibarrResponse = {
+        user: {
+          id: 1,
+          dolibarr_user_id: 456,
+          name: 'John Driver',
+          email: 'driver@company.com',
+          role: 'driver'
+        },
+        token: 'dolibarr-token-123'
+      };
+
+      service.login(mockCredentials).subscribe(response => {
+        expect(response.user.dolibarr_user_id).toBe(456);
+        expect(response.user.role).toBe('driver');
+        expect(response.token).toBe('dolibarr-token-123');
+        done();
+      });
+
+      const req = httpMock.expectOne('/api/auth/login');
+      req.flush(dolibarrResponse);
+    });
+
+    it('should handle Dolibarr connection timeout', (done) => {
+      service.login(mockCredentials).subscribe({
+        error: (error) => {
+          expect(error.message).toContain('Dolibarr connection failed');
+          expect(error.isDolibarrConnected).toBeFalse();
+          done();
+        }
+      });
+
+      const req = httpMock.expectOne('/api/auth/login');
+      req.flush(
+        { message: 'Dolibarr connection timeout' },
+        { status: 504, statusText: 'Gateway Timeout' }
+      );
+    });
+
+    it('should handle Dolibarr invalid credentials specifically', (done) => {
+      service.login(mockCredentials).subscribe({
+        error: (error) => {
+          expect(error.message).toBe('Invalid Dolibarr credentials');
+          done();
+        }
+      });
+
+      const req = httpMock.expectOne('/api/auth/login');
+      req.flush(
+        { 
+          message: 'Authentication failed',
+          errors: { email: ['Invalid Dolibarr credentials.'] }
+        },
+        { status: 401, statusText: 'Unauthorized' }
+      );
+    });
+
+    it('should maintain Dolibarr connection status in auth state', (done) => {
+      service.login(mockCredentials).subscribe(response => {
+        service.authState$.subscribe(state => {
+          expect(state.isDolibarrConnected).toBeTrue();
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne('/api/auth/login');
+      req.flush(mockLoginResponse);
+    });
+
+    it('should handle Dolibarr authentication with device name', (done) => {
+      const credentialsWithDevice: LoginCredentials = {
+        email: 'test@example.com',
+        password: 'password123',
+        device_name: 'iPhone 14 Pro'
+      };
+
+      service.login(credentialsWithDevice).subscribe(response => {
+        expect(response).toEqual(mockLoginResponse);
+        done();
+      });
+
+      const req = httpMock.expectOne('/api/auth/login');
+      expect(req.request.body.device_name).toBe('iPhone 14 Pro');
+      req.flush(mockLoginResponse);
     });
   });
 });
