@@ -2,14 +2,28 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 import { AuthService } from '../../core/services';
 import { User } from '../../core/models';
+import { ShipmentListComponent } from '../../shared/components/shipment-list/shipment-list.component';
+import { OrderListComponent } from '../../shared/components/order-list/order-list.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    MatTabsModule,
+    MatCardModule,
+    MatIconModule,
+    MatButtonModule,
+    ShipmentListComponent,
+    OrderListComponent
+  ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
