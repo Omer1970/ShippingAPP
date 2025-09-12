@@ -1,0 +1,357 @@
+<div class="customer-search-container">
+  <!-- Search Header -->
+  <div class="search-header">
+    <h1>Customer Search</h1>
+    <p class="search-subtitle">Find customers quickly with intelligent search and autocomplete</p>
+  </div>
+
+  <!-- Search Input Section -->
+  <mat-card class="search-input-card">
+    <div class="search-input-container">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Search customers</mat-label>
+        <input matInput
+               type="text"
+               [formControl]="searchControl"
+               placeholder="Type customer name, email, or phone number..."
+               class="search-input"
+               #searchInput>
+        <mat-icon matPrefix>search</mat-icon>
+        
+        <button mat-icon-button 
+                matSuffix 
+                (click)="onClearSearch()"
+                *ngIf="searchControl.value"
+                matTooltip="Clear search">
+          <mat-icon>clear</mat-icon>
+        </button>
+        
+        <button mat-icon-button
+                matSuffix
+                (click)="startVoiceSearch()"
+                [color]="isVoiceSearchActive ? 'warn' : 'accent'"
+                [matTooltip]="isVoiceSearchActive ? 'Stop voice search' : 'Start voice search'"
+                class="voice-search-btn">
+          <mat-icon>{{ isVoiceSearchActive ? 'mic_off' : 'mic' }}</mat-icon>
+        </button>
+      </mat-form-field>
+
+      <div class="search-actions">
+        <button mat-stroked-button
+                (click)="toggleAdvancedFilters()"
+                [color]="showAdvancedFilters ? 'primary' : 'basic'"
+                class="filter-toggle-btn">
+          <mat-icon>{{ showAdvancedFilters ? 'filter_list' : 'filter_list' }}</mat-icon>
+          Advanced Filters
+          <mat-icon class="expand-icon">{{ showAdvancedFilters ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+        
+        <button mat-raised-button
+                color="primary"
+                (click)="onSearchSubmit()"
+                [disabled]="!searchControl.value || searchControl.value.length < 2"
+                class="search-btn">
+          <mat-icon>search</mat-icon>
+          Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Autocomplete Suggestions -->
+    <div class="autocomplete-suggestions" *ngIf="searchState$ | async as state">
+      <div *ngIf="state.suggestions.length > 0 && searchControl.value?.length > 0" 
+           class="suggestion-list">
+        <div class="suggestion-item"
+             *ngFor="let suggestion of state.suggestions; let i = index"
+             (click)="searchControl.setValue(suggestion); onSearchSubmit()"
+             [class.highlighted]="i === 0"
+             role="button"
+             tabindex="0">
+          <mat-icon>search</mat-icon>
+          <span [innerHTML]="getSuggestionDisplay(suggestion, searchControl.value)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Searches -->
+    <div class="recent-searches" *ngIf="searchService.recentSearches$ | async as recent">
+      <div class="recent-searches-header" *ngIf="recent.length > 0">
+        <span class="recent-title">Recent searches</span>
+        <button mat-icon-button
+                (click)="searchService.clearRecentSearches()"
+                matTooltip="Clear recent searches">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+      </div>
+      <div class="recent-search-tag-list">
+        <mat-chip *ngFor="let recentSearch of recent.slice(0, 5)"
+                  (click)="useRecentSearch(recentSearch.query)"
+                  [removable]="true"
+                  (removed)="useRecentSearch(recentSearch.query)"
+                  class="recent-search-chip">
+          <mat-icon>history</mat-icon>
+          {{ recentSearch.query }}
+        </mat-chip>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Advanced Filters Section -->
+  <div class="advanced-filters" *ngIf="showAdvancedFilters" [@slideInOut]>
+    <mat-card class="filters-card">
+      <mat-card-header>
+        <mat-card-title>Advanced Filters</mat-card-title>
+        <div class="filter-actions">
+          <button mat-stroked-button (click)="onResetFilters()">Reset All</button>
+          <button mat-stroked-button color="warn" (click)="onClearAllFilters()">Clear All</button>
+        </div>
+      </mat-card-header>
+      
+      <mat-card-content>
+        <div class="filters-grid">
+          <!-- Customer Type Filter -->
+          <div class="filter-group">
+            <label class="filter-label">Customer Type</label>
+            <mat-chip-listbox [(ngModel)]="customerTypesModel" (ngModelChange)="onFilterChange('customerType', $event)" multiple>
+              <mat-chip-option *ngFor="let type of customerTypes" [value]="type.value">
+                {{ type.label }}
+              </mat-chip-option>
+            </mat-chip-listbox>
+          </div>
+
+          <!-- Credit Status Filter -->
+          <div class="filter-group">
+            <label class="filter-label">Credit Status</label>
+            <mat-chip-listbox [(ngModel)]="creditStatusModel" (ngModelChange)="onFilterChange('creditStatus', $event)" multiple>
+              <mat-chip-option *ngFor="let status of creditStatuses" [value]="status.value">
+                {{ status.label }}
+              </mat-chip-option>
+            </mat-chip-listbox>
+          </div>
+
+          <!-- Date Range Filter -->
+          <div class="filter-group">
+            <label class="filter-label">Last Order Date Range</label>
+            <div class="date-range-inputs">
+              <mat-form-field appearance="outline" class="date-input">
+                <mat-label>From</mat-label>
+                <input matInput [matDatepicker]="startPicker" placeholder="Start date">
+                <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                <mat-datepicker #startPicker></mat-datepicker>
+              </mat-form-field>
+              
+              <mat-form-field appearance="outline" class="date-input">
+                <mat-label>To</mat-label>
+                <input matInput [matDatepicker]="endPicker" placeholder="End date">
+                <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                <mat-datepicker #endPicker></mat-datepicker>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Location Filter -->
+          <div class="filter-group">
+            <label class="filter-label">Location</label>
+            <div class="location-inputs">
+              <mat-form-field appearance="outline" class="location-input">
+                <mat-label>City</mat-label>
+                <input matInput placeholder="Enter city">
+              </mat-form-field>
+              
+              <mat-form-field appearance="outline" class="location-input">
+                <mat-label>State/Province</mat-label>
+                <input matInput placeholder="Enter state">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Order Value Filter -->
+          <div class="filter-group">
+            <label class="filter-label">Order Value Range</label>
+            <div class="value-range-inputs">
+              <mat-form-field appearance="outline" class="value-input">
+                <mat-label>Min Value ($)</mat-label>
+                <input matInput type="number" placeholder="0">
+              </mat-form-field>
+              
+              <mat-form-field appearance="outline" class="value-input">
+                <mat-label>Max Value ($)</mat-label>
+                <input matInput type="number" placeholder="1,000,000">
+              </mat-form-field>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Results Section -->
+  <div class="results-section" *ngIf="searchState$ | async as state">
+    <!-- Results Summary -->
+    <div class="results-summary" *ngIf="state.hasResults || state.isLoading || state.error">
+      <div class="summary-left">
+        <span class="results-text">{{ getResultsSummary(state) }}</span>
+        <span class="search-time" *ngIf="state.searchTime > 0 && state.hasResults && !state.isLoading">
+          ({{ formatSearchTime(state.searchTime) }})
+        </span>
+      </div>
+      
+      <div class="summary-right" *ngIf="filterState$ | async as filters">
+        <mat-chip *ngIf="filters.activeFilters > 0" color="accent" removable (removed)="onClearAllFilters()">
+          <mat-icon>filter_list</mat-icon>
+          {{ filters.activeFilters }} filter{{ filters.activeFilters > 1 ? 's' : '' }} active
+        </mat-chip>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="state.isLoading">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p class="loading-text">Searching customers...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-state" *ngIf="state.error && !state.isLoading">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <h3>Search Error</h3>
+      <p class="error-message">{{ state.error }}</p>
+      <button mat-raised-button color="primary" (click)="onSearchSubmit()">
+        <mat-icon>refresh</mat-icon>
+        Retry Search
+      </button>
+    </div>
+
+    <!-- Customer Results -->
+    <div class="customer-results" *ngIf="state.hasResults && !state.isLoading">
+      <mat-card class="customer-card"
+               *ngFor="let customer of state.results"
+               (click)="onCustomerSelect(customer)"
+               [class.selected]="selectedCustomerId === customer.id"
+               matRipple>
+        
+        <mat-card-header>
+          <div mat-card-avatar class="customer-avatar">
+            <mat-icon>{{ getCustomerTypeIcon(customer.customer_type) }}</mat-icon>
+          </div>
+          
+          <mat-card-title>{{ customer.name }}</mat-card-title>
+          <mat-card-subtitle>
+            <span class="customer-type">{{ customer.customer_type }}</span>
+            <span class="separator">•</span>
+            <span class="credit-status" [class.status-active]="customer.credit_status === 'Active'">
+              {{ customer.credit_status }}
+            </span>
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="customer-info">
+            <div class="info-item" *ngIf="customer.email">
+              <mat-icon>email</mat-icon>
+              <span>{{ customer.email }}</span>
+            </div>
+            
+            <div class="info-item" *ngIf="customer.phone">
+              <mat-icon>phone</mat-icon>
+              <span>{{ customer.phone }}</span>
+            </div>
+            
+            <div class="info-item" *ngIf="customer.address">
+              <mat-icon>location_on</mat-icon>
+              <span class="address">{{ customer.address }}</span>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="customer-stats" *ngIf="customer.statistics">
+            <div class="stat-item">
+              <span class="stat-value">{{ customer.statistics.total_orders }}</span>
+              <span class="stat-label">Orders</span>
+            </div>
+            
+            <div class="stat-item">
+              <span class="stat-value">{{ customer.statistics.total_shipments }}</span>
+              <span class="stat-label">Shipments</span>
+            </div>
+            
+            <div class="stat-item">
+              <span class="stat-value">{{ formatCurrency(customer.statistics.total_value) }}</span>
+              <span class="stat-label">Total Value</span>
+            </div>
+            
+            <div class="stat-item">
+              <span class="stat-value">{{ formatCurrency(customer.statistics.average_order_value) }}</span>
+              <span class="stat-label">Avg Order</span>
+            </div>
+          </div>
+
+          <div class="search-score" *ngIf="customer.search_score">
+            <mat-chip [color]="customer.search_score >= 0.8 ? 'accent' : 'primary'">
+              <mat-icon>search</mat-icon>
+              {{ (customer.search_score * 100).toFixed(0) }}% match
+            </mat-chip>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions>
+          <button mat-button color="primary" (click)="onCustomerSelect(customer); $event.stopPropagation()">
+            <mat-icon>visibility</mat-icon>
+            View Profile
+          </button>
+          <button mat-button (click)="$event.stopPropagation()">
+            <mat-icon>edit</mat-icon>
+            Edit
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Load More / Pagination -->
+      <div class="load-more-section" *ngIf="state.results.length < state.totalResults">
+        <button mat-raised-button color="primary" (click)="loadMoreResults()" [disabled]="state.isLoading">
+          <mat-icon>expand_more</mat-icon>
+          Load More Results
+          <span class="remaining-count">({{ state.totalResults - state.results.length }} remaining)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- No Results State -->
+    <div class="no-results-state" *ngIf="!state.hasResults && !state.isLoading && state.query && !state.error">
+      <mat-icon class="no-results-icon">search_off</mat-icon>
+      <h3>No customers found</h3>
+      <p class="no-results-message">
+        No customers match your search criteria "<strong>{{ state.query }}</strong>"
+      </p>
+      <div class="suggestions">
+        <h4>Try these suggestions:</h4>
+        <ul>
+          <li>Check your spelling</li>
+          <li>Try different keywords</li>
+          <li>Clear any active filters</li>
+          <li>Try searching by email or phone number</li>
+        </ul>
+      </div>
+      <button mat-raised-button color="primary" (click)="onClearSearch()">
+        <mat-icon>refresh</mat-icon>
+        Start New Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="(searchState$ | async)?.query === '' && !(searchState$ | async)?.isLoading">
+    <mat-icon class="empty-icon">search</mat-icon>
+    <h3>Start Searching</h3>
+    <p class="empty-message">Enter a customer name, email, or phone number to begin your search</p>
+    <div class="search-tips">
+      <h4>Search Tips:</h4>
+      <ul>
+        <li>Use customer names (e.g., "John Smith" or "ABC Corporation")</li>
+        <li>Search by email address (e.g., "john@example.com")</li>
+        <li>Try phone numbers (e.g., "+1-555-123-4567")</li>
+        <li>Combine terms for more specific results</li>
+      </ul>
+    </div>
+  </div>
+</div>

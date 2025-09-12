@@ -1,0 +1,154 @@
+<div class="search-autocomplete-container" [ngClass]="getStyleClasses()">
+  <!-- Search Input -->
+  <div class="search-input-wrapper">
+    <div class="input-container">
+      <input
+        #inputElement
+        type="search"
+        class="search-input"
+        [value]="inputValue"
+        [disabled]="disabled"
+        [placeholder]="placeholder || 'Search customers...'"
+        [attr.aria-label]="getAriaLabel()"
+        [attr.aria-describedby]="getAriaDescribedBy()"
+        [attr.role]="getInputRole()"
+        (focus)="onInputFocus()"
+        (blur)="onInputBlur()"
+        (input)="onInputChange($event)"
+        (keyup.enter)="onEnterPress()"
+        (keydown.arrowup)="$event.preventDefault()"
+        (keydown.arrowdown)="$event.preventDefault()"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      
+      <!-- Search Icon -->
+      <div class="input-icon left" *ngIf="!isListening">
+        <mat-icon>search</mat-icon>
+      </div>
+      
+      <!-- Voice Input Icon -->
+      <button
+        *ngIf="allowVoiceInput"
+        mat-icon-button
+        class="input-icon right voice-input-btn"
+        [ngClass]="{'listening': isListening}"
+        [disabled]="disabled"
+        (click)="onVoiceClick()"
+        [matTooltip]="getVoiceTooltip()"
+      >
+        <mat-icon>{{ isListening ? 'mic_off' : 'mic' }}</mat-icon>
+      </button>
+      
+      <!-- Clear Icon -->
+      <button
+        *ngIf="inputValue && !disabled"
+        mat-icon-button
+        class="input-icon right clear-btn"
+        (click)="clearInput()"
+        [matTooltip]="'Clear search'"
+      >
+        <mat-icon>clear</mat-icon>
+      </button>
+      
+      <!-- Loading Spinner -->
+      <div class="input-icon right loading-indicator" *ngIf="isLoading">
+        <mat-spinner diameter="20"></mat-spinner>
+      </div>
+    </div>
+    
+    <!-- Voice Input Controls -->
+    <div class="voice-controls" *ngIf="showVoiceControls || isListening">
+      <div class="voice-status">
+        <mat-icon [ngClass]="{'pulse': isListening}">{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
+        <span class="voice-text">{{ isListening ? 'Listening...' : 'Voice search available' }}</span>
+      </div>
+      <button mat-button class="voice-stop-btn" *ngIf="isListening" (click)="stopVoiceSearch()">
+        <mat-icon>stop</mat-icon>
+        Stop
+      </button>
+    </div>
+  </div>
+  
+  <!-- Accessibility Help Text -->
+  <div id="search-help-text" class="sr-only">
+    Press Enter to search. Use arrow keys to navigate suggestions.
+    Double tap or press Enter to select a suggestion.
+  </div>
+  
+  <!-- Autocomplete Dropdown -->
+  <div
+    class="autocomplete-dropdown"
+    [ngClass]="[dropdownPositionClass, {'visible': shouldShowDropdown}]"
+    [attr.role]="getSuggestionsRole()"
+    [attr.aria-expanded]="showDropdown"
+  >
+    <!-- Loading State -->
+    <div class="dropdown-loading" *ngIf="isLoading">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>Searching...</span>
+    </div>
+    
+    <!-- Suggestions List -->
+    <ul class="suggestions-list" *ngIf="!isLoading && visibleSuggestions.length > 0">
+      <li
+        *ngFor="let suggestion of visibleSuggestions; let i = index"
+        class="suggestion-item"
+        [ngClass]="{
+          'highlighted': isSuggestionHighlighted(suggestion),
+          'selected': i === 0 && highlightIndex === -1
+        }"
+        [attr.role]="getSuggestionItemRole()"
+        [attr.aria-selected]="isSuggestionHighlighted(suggestion)"
+        [attr.aria-label]="suggestion.name + ' ' + (suggestion.email || '')"
+        (click)="selectSuggestion(suggestion)"
+        (mouseenter)="highlightIndex = i"
+      >
+        <!-- Suggestion Icon -->
+        <div class="suggestion-icon">
+          <mat-icon>search</mat-icon>
+        </div>
+        
+        <!-- Suggestion Content -->
+        <div class="suggestion-content">
+          <!-- Customer Name -->
+          <div class="suggestion-name">
+            <span
+              *ngIf="highlightMatches && getSuggestionHighlight(suggestion).highlight_start !== undefined; else simpleName"
+              [innerHTML]="getHighlightedText(getSuggestionHighlight(suggestion))"
+            ></span>
+            <ng-template #simpleName>{{ suggestion.name }}</ng-template>
+          </div>
+          
+          <!-- Customer Details -->
+          <div class="suggestion-details" *ngIf="hasSuggestionDetails(suggestion)">
+            <span class="detail email" *ngIf="suggestion.email">
+              {{ padString(suggestion.email) }}
+            </span>
+            <span class="detail type" *ngIf="suggestion.customer_type">
+              {{ padString(suggestion.customer_type) }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Selection Indicator -->
+        <div class="suggestion-indicator" *ngIf="isSuggestionHighlighted(suggestion)">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+      </li>
+    </ul>
+    
+    <!-- No Results -->
+    <div class="dropdown-no-results" *ngIf="!isLoading && visibleSuggestions.length === 0 && inputValue.length >= minCharacters">
+      <mat-icon>search_off</mat-icon>
+      <p>No matching customers found</p>
+      <small>Try different keywords or check your spelling</small>
+    </div>
+    
+    <!-- Minimum Characters Required -->
+    <div class="dropdown-min-chars" *ngIf="!isLoading && visibleSuggestions.length === 0 && inputValue.length < minCharacters && inputValue.length > 0">
+      <mat-icon>keyboard</mat-icon>
+      <p>{{ minCharacters }} characters minimum for suggestions</p>
+    </div>
+  </div>
+</div>

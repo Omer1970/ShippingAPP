@@ -1,0 +1,231 @@
+<mat-card 
+  *ngIf="customer"
+  class="customer-card"
+  [ngClass]="getCardClasses()"
+  [title]="getTooltipText()"
+  (click)="onCardClick()"
+  (mouseenter)="onCardHover()"
+  (mouseleave)="onCardLeave()"
+  matRipple
+  [disabled]="!isSelectable"
+>
+  <mat-card-header>
+    <!-- Customer Avatar -->
+    <div 
+      mat-card-avatar 
+      class="customer-avatar"
+      [ngClass]="'type-' + customer.customer_type.toLowerCase()"
+    >
+      <mat-icon>{{ getCustomerAvatar() }}</mat-icon>
+    </div>
+
+    <!-- Customer Basic Info -->
+    <div class="customer-header-content">
+      <mat-card-title class="customer-name">
+        <span [innerHTML]="customer.name | customerHighlight: highlightQuery"></span>
+        <mat-chip 
+          *ngIf="searchScore !== undefined && searchScore > 0"
+          [color]="getSearchScoreColor(searchScore)"
+          class="search-score-chip"
+        >
+          <mat-icon>search</mat-icon>
+          {{ getSearchScoreLabel(searchScore) }}
+        </mat-chip>
+      </mat-card-title>
+      
+      <mat-card-subtitle class="customer-subtitle">
+        <span class="customer-type">{{ customer.customer_type }}</span>
+        <span class="separator">•</span>
+        <mat-chip 
+          [color]="getCreditStatusColor()"
+          class="credit-status-chip"
+        >
+          <mat-icon>{{ getCreditStatusIcon() }}</mat-icon>
+          {{ customer.credit_status }}
+        </mat-chip>
+      </mat-card-subtitle>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="header-actions" *ngIf="showActions">
+      <!-- Edit Button -->
+      <button 
+        mat-icon-button
+        class="edit-btn"
+        color="primary"
+        (click)="onActionClick('edit', $event)"
+        [matTooltip]="'Edit customer'"
+      >
+        <mat-icon>edit</mat-icon>
+      </button>
+
+      <!-- More Actions Menu -->
+      <button 
+        mat-icon-button
+        class="more-btn"
+        [matMenuTriggerFor]="customerMenu"
+        [matTooltip]="'More actions'"
+      >
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      
+      <mat-menu #customerMenu="matMenu">
+        <button mat-menu-item (click)="onActionClick('view', $event)">
+          <mat-icon>visibility</mat-icon>
+          <span>View Profile</span>
+        </button>
+        <button mat-menu-item (click)="onActionClick('new_order', $event)">
+          <mat-icon>add_shopping_cart</mat-icon>
+          <span>New Order</span>
+        </button>
+        <button mat-menu-item (click)="onActionClick('new_shipment', $event)">
+          <mat-icon>local_shipping</mat-icon>
+          <span>New Shipment</span>
+        </button>
+        <button mat-menu-item (click)="onActionClick('refresh', $event)">
+          <mat-icon>refresh</mat-icon>
+          <span>Refresh Data</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="onActionClick('remove', $event)" disabled>
+          <mat-icon>remove_circle</mat-icon>
+          <span>Remove from List</span>
+        </button>
+      </mat-menu>
+    </div>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="customer-details">
+      <!-- Contact Information -->
+      <div class="contact-info" *ngIf="customer.email || customer.phone">
+        <div class="detail-item email" *ngIf="customer.email">
+          <mat-icon class="detail-icon">email</mat-icon>
+          <span 
+            class="detail-value"
+            [innerHTML]="customer.email | customerHighlight: highlightQuery"
+          ></span>
+        </div>
+        <div class="detail-item phone" *ngIf="customer.phone">
+          <mat-icon class="detail-icon">phone</mat-icon>
+          <span 
+            class="detail-value"
+            [innerHTML]="customer.phone | customerHighlight: highlightQuery"
+          ></span>
+        </div>
+      </div>
+
+      <!-- Address -->
+      <div class="address-info" *ngIf="customer.address">
+        <div class="detail-item">
+          <mat-icon class="detail-icon">location_on</mat-icon>
+          <span 
+            class="detail-value"
+            [innerHTML]="getFormattedAddress() | customerHighlight: highlightQuery"
+            [matTooltip]="customer.address"
+          ></span>
+        </div>
+      </div>
+
+      <!-- Statistics -->
+      <div class="statistics-section" *ngIf="showStatistics && hasStatistics()">
+        <mat-divider></mat-divider>
+        <div class="stat-grid">
+          <div class="stat-item">
+            <div class="stat-value">{{ getStatistics()?.total_orders || 0 }}</div>
+            <div class="stat-label">Orders</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ getStatistics()?.total_shipments || 0 }}</div>
+            <div class="stat-label">Shipments</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ formatCurrency(getStatistics()?.total_value) }}</div>
+            <div class="stat-label">Total Value</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ formatCurrency(getStatistics()?.average_order_value) }}</div>
+            <div class="stat-label">Avg Order</div>
+          </div>
+        </div>
+        
+        <div class="stat-details" *ngIf="customer.last_search_at">
+          <mat-chip class="customer-chip">
+            <mat-icon>schedule</mat-icon>
+            Last searched: {{ formatDate(customer.last_search_at) }}
+          </mat-chip>
+          
+          <mat-chip class="customer-chip" *ngIf="getStatistics()?.successful_shipment_rate > 0">
+            <mat-icon>verified</mat-icon>
+            {{ (getStatistics()?.successful_shipment_rate || 0).toFixed(1) }}% success rate
+          </mat-chip>
+          
+          <mat-chip class="customer-chip" *ngIf="getStatistics()?.active_orders > 0">
+            <mat-icon>pending</mat-icon>
+            {{ getStatistics()?.active_orders }} active
+          </mat-chip>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-details" *ngIf="!customer.email && !customer.phone && !customer.address && !hasStatistics()">
+        <mat-icon class="empty-state-icon">info_outline</mat-icon>
+        <p class="empty-state-text">No additional details available</p>
+      </div>
+    </div>
+  </mat-card-content>
+
+  <!-- Card Actions -->
+  <mat-card-actions *ngIf="showActions" class="card-actions">
+    <button 
+      mat-button 
+      color="primary"
+      class="primary-action"
+      (click)="onActionClick('view', $event)"
+    >
+      <mat-icon>{{ isSelectable ? 'check_circle' : 'visibility' }}</mat-icon>
+      {{ isSelectable ? 'Select' : 'View' }}
+    </button>
+    
+    <button 
+      mat-button
+      class="secondary-action"
+      (click)="onActionClick('edit', $event)"
+    >
+      <mat-icon>edit</mat-icon>
+      Edit
+    </button>
+  </mat-card-actions>
+</mat-card>
+
+<!-- Loading State -->
+<div class="customer-card loading" *ngIf="!customer">
+  <mat-card>
+    <mat-card-header>
+      <div mat-card-avatar class="loading-avatar"></div>
+      <mat-card-title class="loading-title"></mat-card-title>
+      <mat-card-subtitle class="loading-subtitle"></mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="loading-content"></div>
+      <div class="loading-content short"></div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Selected Overlay -->
+<div class="selection-overlay" *ngIf="isSelected">
+  <mat-icon class="check-icon">check_circle</mat-icon>
+</div>
+
+<!-- Hover Actions -->
+<div class="hover-actions" *ngIf="isSelectable && isHovered">
+  <button 
+    mat-icon-button
+    color="accent"
+    class="select-btn"
+    (click)="onActionClick('select', $event)"
+  >
+    <mat-icon>check_circle</mat-icon>
+  </button>
+</div>

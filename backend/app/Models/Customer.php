@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Laravel\Scout\Searchable;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
 
     protected $table = 'customers';
 
@@ -120,5 +121,51 @@ class Customer extends Model
     {
         $this->searchIndexes()->increment('popularity_weight');
         $this->update(['last_search_at' => now()]);
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'customer_type' => $this->customer_type,
+            'credit_status' => $this->credit_status,
+            'tax_number' => $this->tax_number,
+            'search_vector' => $this->search_vector,
+            'total_orders' => $this->orders()->count(),
+            'total_shipments' => $this->shipments()->count(),
+            'total_order_value' => $this->getTotalOrderValue(),
+            'last_search_at' => $this->last_search_at,
+            'created_at' => $this->created_at,
+            'popularity' => $this->searchIndexes()->avg('popularity_weight') ?? 0,
+        ];
+    }
+
+    public function scopeEnhancedSearch($query, string $searchTerm)
+    {
+        if (empty(trim($searchTerm))) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($searchTerm) {
+            // Boost exact name matches
+            $q->where('name', $searchTerm)
+              ->orderByRaw('name = ? DESC', [$searchTerm])
+              ->orWhere('name', 'like', $searchTerm . '%')
+              ->orderByRaw('name LIKE ? DESC', [$searchTerm . '%'])
+              ->orWhere('name', 'like', '%' . $searchTerm . '%')
+              ->orWhere('email', 'like', $searchTerm . '%')
+              ->orWhere('phone', 'like', '%' . $searchTerm . '%')
+              ->orWhere('search_vector', 'like', '%' . $searchTerm . '%');
+        })
+        ->orWhereHas('searchIndexes', function ($q) use ($searchTerm) {
+            $q->where('search_terms', 'like', '%' . $searchTerm . '%')
+              ->orderByDesc('popularity_weight');
+        })
+        ->orderBy('last_search_at', 'desc')
+        ->orderBy('name', 'asc');
     }
 }
