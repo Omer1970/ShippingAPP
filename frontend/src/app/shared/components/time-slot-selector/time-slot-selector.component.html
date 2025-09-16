@@ -1,0 +1,402 @@
+<div class="time-slot-selector" [ngClass]="{ 'compact-view': compactView, 'dark-theme': theme === 'dark' }">
+  <!-- Header Controls -->
+  <div class="slot-selector-header" *ngIf="!compactView">
+    <div class="header-title">
+      <h3 class="selector-title">Time Slot Selection</h3>
+      <div class="slot-summary" *ngIf="timeSlotAvailability">
+        <span class="summary-item">
+          <i class="fas fa-clock"></i>
+          {{ timeSlotAvailability.total_slots }} slots
+        </span>
+        <span class="summary-item available">
+          <i class="fas fa-check"></i>
+          {{ timeSlotAvailability.available_slots }} available
+        </span>
+        <span class="summary-item limited" *ngIf="timeSlotAvailability.limited_slots > 0">
+          <i class="fas fa-exclamation"></i>
+          {{ timeSlotAvailability.limited_slots }} limited
+        </span>
+        <span class="summary-item full" *ngIf="timeSlotAvailability.full_slots > 0">
+          <i class="fas fa-times"></i>
+          {{ timeSlotAvailability.full_slots }} full
+        </span>
+      </div>
+    </div>
+
+    <div class="header-controls" *ngIf="showTimeLabels">
+      <div class="date-navigation">
+        <button
+          class="nav-button"
+          (click)="previousPeriod()"
+          [disabled]="isLoading()"
+          title="Previous Day">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div class="current-date">
+          <span class="date-label">{{ currentDate | date:'EEEE, MMMM d, yyyy' }}</span>
+        </div>
+
+        <button
+          class="nav-button"
+          (click)="nextPeriod()"
+          [disabled]="isLoading()"
+          title="Next Day">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <div class="control-buttons">
+        <button
+          class="refresh-button"
+          (click)="refresh()"
+          [disabled]="isLoading()"
+          title="Refresh Time Slots">
+          <i class="fas fa-sync-alt" [ngClass]="{ 'fa-spin': isLoading() }"></i>
+        </button>
+
+        <button
+          *ngIf="enableConfiguration"
+          class="config-button"
+          (click)="onConfigurationRequest()"
+          title="Configure Time Slots">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Driver Selector -->
+  <div class="driver-selector" *ngIf="showDriverSelector && availableDrivers.length > 0">
+    <label class="driver-label">Driver:</label>
+    <select
+      class="driver-select"
+      [(ngModel)]="activeDriverId"
+      (change)="loadTimeSlotData()"
+      [disabled]="isLoading()">
+      <option [ngValue]="null">Select Driver</option>
+      <option *ngFor="let driverId of availableDrivers" [ngValue]="driverId">
+        Driver #{{ driverId }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+    </div>
+    <p class="loading-text">Loading time slots...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" *ngIf="hasError()">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <p class="error-text">{{ getErrorMessage() | async }}</p>
+    <button class="retry-button" (click)="refresh()">
+      <i class="fas fa-sync-alt"></i> Retry
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading() && !hasError() && !hasTimeSlots() && activeDriverId">
+    <div class="empty-icon">
+      <i class="fas fa-calendar-times"></i>
+    </div>
+    <p class="empty-text">No time slots available for this date</p>
+    <button
+      *ngIf="enableConfiguration"
+      class="create-slots-button"
+      (click)="onConfigurationRequest()">
+      <i class="fas fa-plus"></i> Create Time Slots
+    </button>
+  </div>
+
+  <!-- No Driver Selected State -->
+  <div class="no-driver-state" *ngIf="!activeDriverId">
+    <div class="no-driver-icon">
+      <i class="fas fa-user-times"></i>
+    </div>
+    <p class="no-driver-text">Please select a driver to view time slots</p>
+  </div>
+
+  <!-- Time Slots Display -->
+  <div class="time-slots-container" *ngIf="!isLoading() && !hasError() && hasTimeSlots() && activeDriverId">
+    <!-- Time Slot Groups -->
+    <div class="time-slot-groups" *ngIf="timeSlotGroups.length > 0">
+      <div
+        class="time-slot-group"
+        *ngFor="let group of timeSlotGroups">
+
+        <div class="group-header">
+          <h4 class="group-title">{{ group.timeGroup }}</h4>
+          <span class="group-time-range">
+            {{ group.earliestTime }} - {{ group.latestTime }}
+          </span>
+        </div>
+
+        <div class="time-slots-grid" [ngClass]="{ 'compact-grid': compactView }">
+          <div
+            *ngFor="let slot of group.slots"
+            class="time-slot-card"
+            [ngClass]="{
+              'selected': isSlotSelected(slot),
+              'selectable': isSlotSelectable(slot),
+              'unselectable': !isSlotSelectable(slot),
+              [getAvailabilityColorClass(slot.availability)]: true
+            }"
+            (click)="onSlotSelection(slot)"
+            [attr.aria-label]="'Time slot ' + slot.slot_label + ' (' + slot.availability + ')'">
+
+            <!-- Slot Header -->
+            <div class="slot-header">
+              <div class="slot-time">
+                <span class="start-time">{{ slot.start_time }}</span>
+                <span class="time-separator">-</span>
+                <span class="end-time">{{ slot.end_time }}</span>
+              </div>
+
+              <div class="slot-status" *ngIf="showAvailabilityIndicator">
+                <i
+                  class="fas status-icon"
+                  [ngClass]="getAvailabilityIcon(slot.availability)"
+                  [title]="slot.availability | titlecase">
+                </i>
+              </div>
+            </div>
+
+            <!-- Slot Label -->
+            <div class="slot-label" *ngIf="!compactView">
+              <span class="label-text">{{ slot.slot_label }}</span>
+            </div>
+
+            <!-- Capacity Information -->
+            <div class="slot-capacity" *ngIf="showCapacityDetails">
+              <div class="capacity-indicator">
+                <div
+                  class="capacity-bar"
+                  [style.width.%]="getCapacityUtilization(slot)"
+                  [ngClass]="getAvailabilityColorClass(slot.availability)">
+                </div>
+              </div>
+
+              <div class="capacity-text">
+                <span class="booked">{{ slot.booked }}</span>
+                <span class="separator">/</span>
+                <span class="total">{{ slot.capacity }}</span>
+                <span class="label">booked</span>
+              </div>
+            </div>
+
+            <!-- Availability Details -->
+            <div class="slot-details" *ngIf="!compactView && slot.available_capacity > 0">
+              <span class="available-spots">
+                {{ slot.available_capacity }} spot{{ slot.available_capacity === 1 ? '' : 's' }} available
+              </span>
+            </div>
+
+            <!-- Booking Button -->
+            <div class="slot-actions" *ngIf="enableBooking && slot.is_available">
+              <button
+                class="book-slot-button"
+                (click)="onBookingAttempt(slot); $event.stopPropagation()"
+                [disabled]="bookingInProgress || !isSlotSelectable(slot)"
+                *ngIf="!isSlotSelected(slot)">
+                <i class="fas fa-calendar-plus"></i>
+                Book
+              </button>
+
+              <div class="selected-indicator" *ngIf="isSlotSelected(slot)">
+                <i class="fas fa-check"></i>
+                <span>Selected</span>
+              </div>
+            </div>
+
+            <!-- Selection Indicator -->
+            <div class="selection-indicator" *ngIf="selectionMode !== 'single' && isSlotSelected(slot)">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Time Period Organization -->
+    <div class="time-period-organization" *ngIf="timeSlotGroups.length === 0">
+      <!-- Morning Slots -->
+      <div class="time-period-section" *ngIf="morningSlots.length > 0">
+        <div class="period-header">
+          <h4 class="period-title">
+            <i class="fas fa-sun"></i>
+            Morning
+          </h4>
+          <span class="period-count">{{ morningSlots.length }} slots</span>
+        </div>
+
+        <div class="time-slots-grid" [ngClass]="{ 'compact-grid': compactView }">
+          <div
+            *ngFor="let slot of morningSlots"
+            class="time-slot-card"
+            [ngClass]="{
+              'selected': isSlotSelected(slot),
+              'selectable': isSlotSelectable(slot),
+              'unselectable': !isSlotSelectable(slot),
+              [getAvailabilityColorClass(slot.availability)]: true
+            }"
+            (click)="onSlotSelection(slot)">
+
+            <div class="slot-content">
+              <div class="slot-main-info">
+                <div class="slot-time-range">
+                  {{ slot.start_time }} - {{ slot.end_time }}
+                </div>
+
+                <div class="slot-label">
+                  {{ slot.slot_label }}
+                </div>
+              </div>
+
+              <div class="slot-meta">
+                <div class="capacity-info" *ngIf="showCapacityDetails">
+                  <span class="capacity">{{ slot.booked }}/{{ slot.capacity }}</span>
+                </div>
+
+                <div class="availability-status" *ngIf="showAvailabilityIndicator">
+                  <i
+                    class="fas status-icon"
+                    [ngClass]="getAvailabilityIcon(slot.availability)">
+                  </i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Afternoon Slots -->
+      <div class="time-period-section" *ngIf="afternoonSlots.length > 0">
+        <div class="period-header">
+          <h4 class="period-title">
+            <i class="fas fa-cloud-sun"></i>
+            Afternoon
+          </h4>
+          <span class="period-count">{{ afternoonSlots.length }} slots</span>
+        </div>
+
+        <div class="time-slots-grid" [ngClass]="{ 'compact-grid': compactView }">
+          <div
+            *ngFor="let slot of afternoonSlots"
+            class="time-slot-card"
+            [ngClass]="{
+              'selected': isSlotSelected(slot),
+              'selectable': isSlotSelectable(slot),
+              'unselectable': !isSlotSelectable(slot),
+              [getAvailabilityColorClass(slot.availability)]: true
+            }"
+            (click)="onSlotSelection(slot)">
+
+            <div class="slot-content">
+              <div class="slot-main-info">
+                <div class="slot-time-range">
+                  {{ slot.start_time }} - {{ slot.end_time }}
+                </div>
+
+                <div class="slot-label">
+                  {{ slot.slot_label }}
+                </div>
+              </div>
+
+              <div class="slot-meta">
+                <div class="capacity-info" *ngIf="showCapacityDetails">
+                  <span class="capacity">{{ slot.booked }}/{{ slot.capacity }}</span>
+                </div>
+
+                <div class="availability-status" *ngIf="showAvailabilityIndicator">
+                  <i
+                    class="fas status-icon"
+                    [ngClass]="getAvailabilityIcon(slot.availability)">
+                  </i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evening Slots -->
+      <div class="time-period-section" *ngIf="eveningSlots.length > 0">
+        <div class="period-header">
+          <h4 class="period-title">
+            <i class="fas fa-moon"></i>
+            Evening
+          </h4>
+          <span class="period-count">{{ eveningSlots.length }} slots</span>
+        </div>
+
+        <div class="time-slots-grid" [ngClass]="{ 'compact-grid': compactView }">
+          <div
+            *ngFor="let slot of eveningSlots"
+            class="time-slot-card"
+            [ngClass]="{
+              'selected': isSlotSelected(slot),
+              'selectable': isSlotSelectable(slot),
+              'unselectable': !isSlotSelectable(slot),
+              [getAvailabilityColorClass(slot.availability)]: true
+            }"
+            (click)="onSlotSelection(slot)">
+
+            <div class="slot-content">
+              <div class="slot-main-info">
+                <div class="slot-time-range">
+                  {{ slot.start_time }} - {{ slot.end_time }}
+                </div>
+
+                <div class="slot-label">
+                  {{ slot.slot_label }}
+                </div>
+              </div>
+
+              <div class="slot-meta">
+                <div class="capacity-info" *ngIf="showCapacityDetails">
+                  <span class="capacity">{{ slot.booked }}/{{ slot.capacity }}</span>
+                </div>
+
+                <div class="availability-status" *ngIf="showAvailabilityIndicator">
+                  <i
+                    class="fas status-icon"
+                    [ngClass]="getAvailabilityIcon(slot.availability)">
+                  </i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selection Summary -->
+  <div class="selection-summary" *ngIf="selectionMode !== 'single' && getSelectedSlotsCount() > 0">
+    <div class="summary-info">
+      <span class="selected-count">
+        <i class="fas fa-check-circle"></i>
+        {{ getSelectedSlotsCount() }} slot{{ getSelectedSlotsCount() === 1 ? '' : 's' }} selected
+      </span>
+
+      <button class="clear-selection-button" (click)="clearSelection()">
+        <i class="fas fa-times"></i>
+        Clear Selection
+      </button>
+    </div>
+  </div>
+
+  <!-- Booking Actions -->
+  <div class="booking-actions" *ngIf="enableBooking && canBook()">
+    <button class="book-selected-button" (click)="bookSelectedSlots()">
+      <i class="fas fa-calendar-check"></i>
+      Book Selected Slots ({{ getSelectedSlotsCount() }})
+    </button>
+  </div>
+</div>

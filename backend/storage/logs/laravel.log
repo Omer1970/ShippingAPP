@@ -1434,3 +1434,252 @@ Stack trace:
 #6 {main}
 "} 
 [2025-09-09 20:15:18] laravel.ERROR: Dolibarr connection test failed: SQLSTATE[HY000] [2002] No such file or directory (Connection: dolibarr, SQL: SELECT 1)  
+[2025-09-13 06:36:32] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(203): Illuminate\\Foundation\\Console\\Kernel->reportException()
+#7 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#8 {main}
+"} 
+[2025-09-13 06:36:32] laravel.ERROR: Command "test" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test at /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php:737)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(266): Symfony\\Component\\Console\\Application->find()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#3 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#4 {main}
+"} 
+[2025-09-13 07:05:56] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(203): Illuminate\\Foundation\\Console\\Kernel->reportException()
+#7 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#8 {main}
+"} 
+[2025-09-13 07:05:56] laravel.ERROR: Command "test" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test at /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php:737)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(266): Symfony\\Component\\Console\\Application->find()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#3 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#4 {main}
+"} 
+[2025-09-13 07:06:09] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(203): Illuminate\\Foundation\\Console\\Kernel->reportException()
+#7 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#8 {main}
+"} 
+[2025-09-13 07:06:09] laravel.ERROR: Command "test" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test at /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php:737)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(266): Symfony\\Component\\Console\\Application->find()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#3 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#4 {main}
+"} 
+[2025-09-13 07:29:08] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(183): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(231): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleException()
+#7 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(255): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleShutdown()
+#8 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->Illuminate\\Foundation\\Bootstrap\\{closure}()
+#9 {main}
+"} 
+[2025-09-13 07:29:08] laravel.ERROR: Trait "Laravel\Scout\Searchable" not found {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Trait \"Laravel\\Scout\\Searchable\" not found at /home/remo/codebase/ShipmentApp/backend/app/Models/DeliveryConfirmation.php:12)
+[stacktrace]
+#0 {main}
+"} 
+[2025-09-13 07:29:08] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(183): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(231): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleException()
+#7 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(255): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleShutdown()
+#8 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->Illuminate\\Foundation\\Bootstrap\\{closure}()
+#9 {main}
+"} 
+[2025-09-13 07:29:08] laravel.ERROR: Trait "Laravel\Scout\Searchable" not found {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Trait \"Laravel\\Scout\\Searchable\" not found at /home/remo/codebase/ShipmentApp/backend/app/Models/DeliveryConfirmation.php:12)
+[stacktrace]
+#0 {main}
+"} 
+[2025-09-13 07:29:08] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(183): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(231): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleException()
+#7 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(255): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleShutdown()
+#8 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->Illuminate\\Foundation\\Bootstrap\\{closure}()
+#9 {main}
+"} 
+[2025-09-13 07:29:08] laravel.ERROR: Trait "Laravel\Scout\Searchable" not found {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Trait \"Laravel\\Scout\\Searchable\" not found at /home/remo/codebase/ShipmentApp/backend/app/Models/DeliveryConfirmation.php:12)
+[stacktrace]
+#0 {main}
+"} 
+[2025-09-13 08:30:38] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(203): Illuminate\\Foundation\\Console\\Kernel->reportException()
+#7 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#8 {main}
+"} 
+[2025-09-13 08:30:38] laravel.ERROR: Command "test" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
+
+Did you mean one of these?
+    make:test
+    schedule:test at /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php:737)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(266): Symfony\\Component\\Console\\Application->find()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#3 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#4 {main}
+"} 
+[2025-09-13 11:31:48] laravel.EMERGENCY: Unable to create configured logger. Using emergency logger. {"exception":"[object] (InvalidArgumentException(code: 0): Log [] is not defined. at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php:212)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(137): Illuminate\\Log\\LogManager->resolve()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(124): Illuminate\\Log\\LogManager->get()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Log/LogManager.php(681): Illuminate\\Log\\LogManager->driver()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(317): Illuminate\\Log\\LogManager->error()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(278): Illuminate\\Foundation\\Exceptions\\Handler->reportThrowable()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): Illuminate\\Foundation\\Exceptions\\Handler->report()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(203): Illuminate\\Foundation\\Console\\Kernel->reportException()
+#7 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#8 {main}
+"} 
+[2025-09-13 11:31:48] laravel.ERROR: SQLSTATE[08006] [7] could not translate host name "db" to address: Temporary failure in name resolution (Connection: pgsql, SQL: select * from information_schema.tables where table_catalog = shipmentapp and table_schema = public and table_name = migrations and table_type = 'BASE TABLE') {"exception":"[object] (Illuminate\\Database\\QueryException(code: 7): SQLSTATE[08006] [7] could not translate host name \"db\" to address: Temporary failure in name resolution (Connection: pgsql, SQL: select * from information_schema.tables where table_catalog = shipmentapp and table_schema = public and table_name = migrations and table_type = 'BASE TABLE') at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php:829)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(983): Illuminate\\Database\\Connection->runQueryCallback()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(962): Illuminate\\Database\\Connection->tryAgainIfCausedByLostConnection()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(785): Illuminate\\Database\\Connection->handleQueryException()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(414): Illuminate\\Database\\Connection->run()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(401): Illuminate\\Database\\Connection->select()
+#5 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Schema/PostgresBuilder.php(51): Illuminate\\Database\\Connection->selectFromWriteConnection()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/DatabaseMigrationRepository.php(184): Illuminate\\Database\\Schema\\PostgresBuilder->hasTable()
+#7 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(727): Illuminate\\Database\\Migrations\\DatabaseMigrationRepository->repositoryExists()
+#8 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(140): Illuminate\\Database\\Migrations\\Migrator->repositoryExists()
+#9 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Support/helpers.php(261): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->Illuminate\\Database\\Console\\Migrations\\{closure}()
+#10 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(140): retry()
+#11 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(116): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->repositoryExists()
+#12 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(84): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->prepareDatabase()
+#13 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(641): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->Illuminate\\Database\\Console\\Migrations\\{closure}()
+#14 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(83): Illuminate\\Database\\Migrations\\Migrator->usingConnection()
+#15 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
+#16 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#17 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure()
+#18 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod()
+#19 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/Container.php(662): Illuminate\\Container\\BoundMethod::call()
+#20 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(211): Illuminate\\Container\\Container->call()
+#21 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Command/Command.php(326): Illuminate\\Console\\Command->execute()
+#22 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(180): Symfony\\Component\\Console\\Command\\Command->run()
+#23 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(1096): Illuminate\\Console\\Command->run()
+#24 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(324): Symfony\\Component\\Console\\Application->doRunCommand()
+#25 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#26 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#27 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#28 {main}
+
+[previous exception] [object] (PDOException(code: 7): SQLSTATE[08006] [7] could not translate host name \"db\" to address: Temporary failure in name resolution at /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:65)
+[stacktrace]
+#0 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(65): PDO->__construct()
+#1 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(83): Illuminate\\Database\\Connectors\\Connector->createPdoConnection()
+#2 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(48): Illuminate\\Database\\Connectors\\Connector->tryAgainIfCausedByLostConnection()
+#3 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/PostgresConnector.php(35): Illuminate\\Database\\Connectors\\Connector->createConnection()
+#4 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connectors/ConnectionFactory.php(184): Illuminate\\Database\\Connectors\\PostgresConnector->connect()
+#5 [internal function]: Illuminate\\Database\\Connectors\\ConnectionFactory->Illuminate\\Database\\Connectors\\{closure}()
+#6 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(1339): call_user_func()
+#7 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(528): Illuminate\\Database\\Connection->getPdo()
+#8 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(423): Illuminate\\Database\\Connection->getPdoForSelect()
+#9 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(816): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}()
+#10 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(983): Illuminate\\Database\\Connection->runQueryCallback()
+#11 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(962): Illuminate\\Database\\Connection->tryAgainIfCausedByLostConnection()
+#12 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(785): Illuminate\\Database\\Connection->handleQueryException()
+#13 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(414): Illuminate\\Database\\Connection->run()
+#14 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(401): Illuminate\\Database\\Connection->select()
+#15 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Schema/PostgresBuilder.php(51): Illuminate\\Database\\Connection->selectFromWriteConnection()
+#16 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/DatabaseMigrationRepository.php(184): Illuminate\\Database\\Schema\\PostgresBuilder->hasTable()
+#17 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(727): Illuminate\\Database\\Migrations\\DatabaseMigrationRepository->repositoryExists()
+#18 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(140): Illuminate\\Database\\Migrations\\Migrator->repositoryExists()
+#19 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Support/helpers.php(261): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->Illuminate\\Database\\Console\\Migrations\\{closure}()
+#20 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(140): retry()
+#21 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(116): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->repositoryExists()
+#22 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(84): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->prepareDatabase()
+#23 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(641): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->Illuminate\\Database\\Console\\Migrations\\{closure}()
+#24 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(83): Illuminate\\Database\\Migrations\\Migrator->usingConnection()
+#25 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
+#26 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#27 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure()
+#28 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod()
+#29 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Container/Container.php(662): Illuminate\\Container\\BoundMethod::call()
+#30 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(211): Illuminate\\Container\\Container->call()
+#31 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Command/Command.php(326): Illuminate\\Console\\Command->execute()
+#32 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(180): Symfony\\Component\\Console\\Command\\Command->run()
+#33 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(1096): Illuminate\\Console\\Command->run()
+#34 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(324): Symfony\\Component\\Console\\Application->doRunCommand()
+#35 /home/remo/codebase/ShipmentApp/backend/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#36 /home/remo/codebase/ShipmentApp/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#37 /home/remo/codebase/ShipmentApp/backend/artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle()
+#38 {main}
+"} 

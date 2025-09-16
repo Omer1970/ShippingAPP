@@ -1,0 +1,277 @@
+<div class="camera-capture-container">
+  <!-- Camera Permissions Status -->
+  <div class="permissions-status" *ngIf="!hasCameraAccess && allowCamera">
+    <div class="permission-request" *ngIf="permissions.camera === 'prompt'">
+      <mat-icon>camera_alt</mat-icon>
+      <div class="permission-message">
+        <h4>Camera Access Required</h4>
+        <p>Please allow camera access to take photos for delivery confirmation.</p>
+      </div>
+      <button mat-raised-button color="primary" (click)="initializeCamera()">
+        <mat-icon>camera_alt</mat-icon>
+        Allow Camera Access
+      </button>
+    </div>
+    
+    <div class="permission-denied" *ngIf="permissions.camera === 'denied'">
+      <mat-icon>no_photography</mat-icon>
+      <div class="permission-message">
+        <h4>Camera Access Denied</h4>
+        <p>Camera access has been denied. Please:
+        </p>
+        <ul>
+          <li>Enable camera permissions in your browser settings</li>
+          <li>Or use the gallery option to select existing photos</li>
+        </ul>
+      </div>
+      <button mat-stroked-button (click)="captureMode = 'gallery'">
+        <mat-icon>photo_library</mat-icon>
+        Use Gallery Instead
+      </button>
+    </div>
+  </div>
+
+  <!-- Capture Mode Selector -->
+  <div class="capture-mode-selector" *ngIf="hasCameraAccess && (allowCamera && allowGallery)">
+    <button 
+      mat-button 
+      [class.active]="captureMode === 'camera'"
+      [disabled]="!hasCameraAccess"
+      (click)="captureMode = 'camera'">
+      <mat-icon>photo_camera</mat-icon>
+      Camera
+    </button>
+    
+    <button 
+      mat-button 
+      [class.active]="captureMode === 'gallery'"
+      (click)="captureMode = 'gallery'">
+      <mat-icon>photo_library</mat-icon>
+      Gallery
+    </button>
+  </div>
+
+  <!-- Camera Capture Section -->
+  <div class="camera-section" *ngIf="captureMode === 'camera' && hasCameraAccess">
+    <div class="camera-viewport">
+      <!-- Video Preview -->
+      <video 
+        #cameraVideo 
+        class="camera-video"
+        [class.hidden]="!cameraActive"
+        playsinline
+        autoplay>
+      </video>
+      
+      <!-- No Camera/Lost Camera -->
+      <div class="no-camera-message" *ngIf="!cameraActive">
+        <mat-icon>no_photography</mat-icon>
+        <h4>Camera Not Active</h4>
+        <p>Camera preview will appear here</p>
+        <button mat-raised-button color="primary" (click)="initializeCamera()">
+          <mat-icon>refresh</mat-icon>
+          Reconnect Camera
+        </button>
+      </div>
+      
+      <!-- Location Status -->
+      <div class="location-overlay" *ngIf="currentLocation && enableGPS">
+        <div class="location-badge">
+          <mat-icon>location_on</mat-icon>
+          <span>{{ currentLocation.latitude.toFixed(4) }}, {{ currentLocation.longitude.toFixed(4) }}</span>
+          <span *ngIf="currentLocation.accuracy" class="accuracy">±{{ currentLocation.accuracy.toFixed(1) }}m</span>
+        </div>
+      </div>
+      
+      <!-- Capture Frame -->
+      <div class="capture-frame" *ngIf="cameraActive">
+        <div class="frame-corners">
+          <div class="corner top-left"></div>
+          <div class="corner top-right"></div>
+          <div class="corner bottom-left"></div>
+          <div class="corner bottom-right"></div>
+        </div>
+        <div class="capture-instructions">
+          <span>Capture delivery photo here</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Camera Controls -->
+    <div class="camera-controls" *ngIf="showControls">
+      <div class="control-row">
+        <button 
+          mat-fab 
+          color="primary" 
+          (click)="takePhoto()" 
+          [disabled]="!cameraActive || isCapturing || photoGallery.length >= maxPhotos"
+          class="capture-button">
+          <ng-container *ngIf="!isCapturing">
+            <mat-icon>photo_camera</mat-icon>
+          </ng-container>
+          <ng-container *ngIf="isCapturing">
+            <mat-spinner diameter="24"></mat-spinner>
+          </ng-container>
+        </button>
+        
+        <div class="control-buttons">
+          <button 
+            mat-icon-button 
+            (click)="switchCamera()" 
+            matTooltip="Switch camera front/back">
+            <mat-icon>flip_camera_ios</mat-icon>
+          </button>
+          
+          <button 
+            mat-icon-button 
+            (click)="toggleLocationTracking()" 
+            [color]="locationTracking ? 'primary' : 'basic'"
+            matTooltip="Toggle GPS tracking">
+            <mat-icon>my_location</mat-icon>
+          </button>
+        </div>
+      </div>
+      
+      <div class="control-status">
+        <span class="photo-count">
+          {{ photoGallery.length }} / {{ maxPhotos }} photos
+        </span>
+        <span class="gallery-status" *ngIf="captureMode === 'camera' && allowGallery">
+          <mat-icon>photo_library</mat-icon>
+          Switch to gallery to select existing photos
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Photo Preview -->
+  <div class="current-photo-preview" *ngIf="currentPhoto">
+    <div class="preview-container">
+      <img [src]="currentPhoto.dataUrl" [alt]="'Captured photo'" />
+      
+      <div class="preview-overlay">
+        <div class="preview-actions">
+          <button mat-icon-button (click)="retakePhoto()" matTooltip="Retake photo">
+            <mat-icon>refresh</mat-icon>
+          </button>
+          
+          <button mat-icon-button (click)="saveCurrentPhoto()" matTooltip="Save photo">
+            <mat-icon>check</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery Section -->
+  <div class="gallery-section" *ngIf="showGallery">
+    <!-- Gallery Mode Selector -->
+    <div class="gallery-browser" *ngIf="captureMode === 'gallery'">
+      <div class="gallery-instructions">
+        <mat-icon>folder_open</mat-icon>
+        <div>
+          <h4>Select Photos from Gallery</h4>
+          <p>Choose up to {{ maxPhotos - photoGallery.length }} additional photos</p>
+          <small>Supported formats: JPG, PNG</small>
+        </div>
+      </div>
+      
+      <button mat-raised-button color="primary" (click)="browseGallery()" [disabled]="photoGallery.length >= maxPhotos">
+        <mat-icon>photo_library</mat-icon>
+        Browse Gallery
+      </button>
+    </div>
+    
+    <!-- Photo Grid -->
+    <div class="photo-grid" *ngIf="showGallery">
+      <div *ngFor="let photo of photoGallery; let i = index" class="photo-item">
+        <div class="photo-content">
+          <img [src]="photo.dataUrl" [alt]="'Photo ' + (i + 1)" />
+          
+          <div class="photo-overlay">
+            <div class="photo-info">
+              <span class="photo-number">#{{ i + 1 }}</span>
+              <span class="photo-status" [class.uploading]="photo.uploadStatus === 'uploading'" [class.error]="photo.uploadStatus === 'error'" [class.completed]="photo.uploadStatus === 'completed'">
+                <mat-icon *ngIf="photo.uploadStatus === 'completed'">check_circle</mat-icon>
+                <mat-icon *ngIf="photo.uploadStatus === 'uploading'">upload_file</mat-icon>
+                <mat-icon *ngIf="photo.uploadStatus === 'error'">error</mat-icon>
+                <mat-icon *ngIf="photo.uploadStatus === 'pending'">watch_later</mat-icon>
+                {{ getStatusText(photo.uploadStatus) }}
+              </span>
+            </div>
+            
+            <div class="photo-actions">
+              <button 
+                mat-icon-button 
+                (click)="removePhoto(i)" 
+                *ngIf="photo.uploadStatus !== 'uploading'"
+                matTooltip="Remove photo">
+                <mat-icon>delete</mat-icon>
+              </button>
+              
+              <button 
+                mat-icon-button 
+                (click)="previewPhoto(photo)" 
+                *ngIf="photo.dataUrl">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Upload Progress -->
+        <div class="upload-progress" *ngIf="photo.uploadStatus === 'uploading' && photo.uploadProcess">
+          <mat-progress-bar 
+            mode="determinate" 
+            [value]="photo.uploadProcess.percentage"
+            [color]="photo.uploadProcess.success ? 'primary' : 'warn'">
+          </mat-progress-bar>
+          <div class="progress-details">
+            <span>{{ photo.uploadProcess.percentage }}% complete</span>
+            <span>{{ photo.uploadProcess.text }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="empty-gallery" *ngIf="photoGallery.length === 0">
+        <mat-icon>photo_library</mat-icon>
+        <p>No photos uploaded yet</p>
+        <small>Use camera or browse gallery to add photos</small>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Upload Controls -->
+  <div class="upload-controls" *ngIf="showControls && photoGallery.length > 0">
+    <div class="control-info">
+      <div class="upload-status">
+        <span>{{ getUploadedCount() }} / {{ photoGallery.length }} photos uploaded</span>
+      </div>
+      <div class="upload-summary" *ngIf="isUploading">
+        <mat-spinner diameter="16"></mat-spinner>
+        <span>Uploading photos...</span>
+      </div>
+    </div>
+    
+    <div class="control-actions">
+      <button 
+        mat-raised-button 
+        color="primary" 
+        (click)="uploadPhotos()" 
+        [disabled]="isUploading || getUploadedCount() === photoGallery.length"
+        *ngIf="!autoUpload">
+        <mat-icon>cloud_upload</mat-icon>
+        Upload {{ photoGallery.length - getUploadedCount() }} Photos
+      </button>
+      
+      <button 
+        mat-stroked-button 
+        color="warn" 
+        (click)="clearAllPhotos()" 
+        [disabled]="isUploading">
+        <mat-icon>delete_outline</mat-icon>
+        Clear All
+      </button>
+    </div>
+  </div>
+</div>

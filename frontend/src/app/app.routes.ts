@@ -17,6 +17,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'calendar',
+    loadChildren: () => import('./features/calendar-delivery/calendar-delivery.module').then(m => m.CalendarDeliveryModule),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'login',
     redirectTo: '/auth/login',
     pathMatch: 'full'

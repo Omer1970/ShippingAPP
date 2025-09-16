@@ -1,0 +1,561 @@
+<div class="delivery-planner" [ngClass]="{ 'dark-theme': theme === 'dark' }">
+  <!-- Planner Header -->
+  <div class="planner-header">
+    <div class="header-title">
+      <h2 class="planner-title">
+        <i class="fas fa-calendar-alt"></i>
+        Delivery Planner
+      </h2>
+      <div class="planner-summary" *ngIf="deliverySchedules.length > 0">
+        <span class="summary-item">
+          <i class="fas fa-truck"></i>
+          {{ deliverySchedules.length }} deliveries
+        </span>
+        <span class="summary-item" *ngIf="hasConflicts()">
+          <i class="fas fa-exclamation-triangle"></i>
+          {{ scheduleConflicts?.conflicts?.length || 0 }} conflicts
+        </span>
+        <span class="summary-item" *ngIf="selectedRoutePlan">
+          <i class="fas fa-route"></i>
+          {{ (selectedRoutePlan.efficiency_score * 100).toFixed(1) }}% efficient
+        </span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- View Navigation -->
+      <div class="view-navigation">
+        <button
+          *ngFor="let view of ['calendar', 'schedule', 'route', 'conflicts']"
+          class="nav-button"
+          [ngClass]="{ 'active': activeView === view }"
+          (click)="navigateToView(view)"
+          [disabled]="isLoading()">
+          <i class="fas" [ngClass]="getViewIcon(view)"></i>
+          <span class="nav-label">{{ view | titlecase }}</span>
+        </button>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="action-controls">
+        <button
+          class="add-schedule-button"
+          (click)="addNewSchedule()"
+          [disabled]="!canAddSchedule() || isLoading()"
+          *ngIf="mode === 'scheduling'">
+          <i class="fas fa-plus"></i>
+          Add Delivery
+        </button>
+
+        <button
+          class="optimize-button"
+          (click)="optimizeRoute()"
+          [disabled]="!canOptimize() || isLoading()"
+          *ngIf="enableRouteOptimization">
+          <i class="fas fa-magic" *ngIf="!optimizationInProgress"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="optimizationInProgress"></i>
+          Optimize Route
+        </button>
+
+        <button
+          class="refresh-button"
+          (click)="refresh()"
+          [disabled]="isLoading()">
+          <i class="fas fa-sync-alt" [ngClass]="{ 'fa-spin': isLoading() }"></i>
+        </button>
+
+        <button
+          class="toggle-sidebar"
+          (click)="isSidebarCollapsed = !isSidebarCollapsed"
+          [title]="isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'">
+          <i class="fas" [ngClass]="isSidebarCollapsed ? 'fa-chevron-left' : 'fa-chevron-right'"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+    </div>
+    <p class="loading-text">Loading planner data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" *ngIf="hasError()">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <p class="error-text">{{ getErrorMessage() | async }}</p>
+    <button class="retry-button" (click)="refresh()">
+      <i class="fas fa-sync-alt"></i> Retry
+    </button>
+  </div>
+
+  <!-- Planner Content -->
+  <div class="planner-content" *ngIf="!isLoading() && !hasError()">
+    <!-- Main Content Area -->
+    <div class="main-content" [ngClass]="{ 'sidebar-collapsed': isSidebarCollapsed }">
+      <!-- Calendar View -->
+      <div class="view-container" *ngIf="activeView === 'calendar'">
+        <div class="calendar-section">
+          <div class="calendar-header">
+            <h3 class="section-title">Calendar View</h3>
+            <div class="calendar-controls">
+              <div class="date-navigation">
+                <button class="nav-button" (click)="previousWeek()" title="Previous Week">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="current-week">
+                  {{ getWeekRange() }}
+                </span>
+                <button class="nav-button" (click)="nextWeek()" title="Next Week">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="view-controls">
+                <button class="view-button" [ngClass]="{ 'active': calendarViewMode === 'month' }"
+                  (click)="setCalendarViewMode('month')">Month</button>
+                <button class="view-button" [ngClass]="{ 'active': calendarViewMode === 'week' }"
+                  (click)="setCalendarViewMode('week')">Week</button>
+                <button class="view-button" [ngClass]="{ 'active': calendarViewMode === 'day' }"
+                  (click)="setCalendarViewMode('day')">Day</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="calendar-content">
+            <app-calendar-viewer
+              [viewMode]="calendarViewMode"
+              [initialDate]="currentDate"
+              [driverIds]="activeDriverId ? [activeDriverId] : []"
+              [showTimeSlots]="showTimeSlots"
+              [enableDragDrop]="enableDragDrop"
+              [autoRefresh]="false"
+              (eventClicked)="onCalendarEventSelected($event)"
+              (eventRescheduled)="onCalendarEventDragged($event)">
+            </app-calendar-viewer>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule View -->
+      <div class="view-container" *ngIf="activeView === 'schedule'">
+        <div class="schedule-section">
+          <div class="schedule-header">
+            <h3 class="section-title">Schedule Management</h3>
+            <div class="schedule-controls">
+              <div class="planning-mode">
+                <button
+                  class="mode-button"
+                  [ngClass]="{ 'active': planningMode === 'single' }"
+                  (click)="planningMode = 'single'">
+                  Single
+                </button>
+                <button
+                  class="mode-button"
+                  [ngClass]="{ 'active': planningMode === 'bulk' }"
+                  (click)="planningMode = 'bulk'">
+                  Bulk
+                </button>
+              </div>
+
+              <button
+                class="add-schedule-button"
+                (click)="addNewSchedule()"
+                [disabled]="!canAddSchedule()">
+                <i class="fas fa-plus"></i>
+                Add Schedule
+              </button>
+            </div>
+          </div>
+
+          <div class="schedule-content">
+            <!-- Draft Schedule Form -->
+            <div class="draft-schedule" *ngIf="draftSchedule">
+              <div class="draft-header">
+                <h4 class="draft-title">New Delivery Schedule</h4>
+                <button class="close-draft" (click)="cancelDraftSchedule()">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div class="draft-form">
+                <div class="form-group">
+                  <label class="form-label">Delivery Date</label>
+                  <input
+                    type="date"
+                    class="form-input"
+                    [(ngModel)]="draftSchedule.delivery_date"
+                    [min]="todayDate">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Time Slot</label>
+                  <app-time-slot-selector
+                    [driverId]="activeDriverId"
+                    [selectedDate]="currentDate"
+                    [selectionMode]="'single'"
+                    [enableBooking]="enableTimeSlotBooking"
+                    (slotSelected)="onTimeSlotSelected($event)">
+                  </app-time-slot-selector>
+                </div>
+
+                <div class="form-actions">
+                  <button
+                    class="save-button"
+                    (click)="saveDraftSchedule()"
+                    [disabled]="!selectedTimeSlot">
+                    <i class="fas fa-save"></i>
+                    Save Schedule
+                  </button>
+                  <button class="cancel-button" (click)="cancelDraftSchedule()">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedule List -->
+            <div class="schedule-list">
+              <div class="list-header">
+                <h4 class="list-title">Delivery Schedules</h4>
+                <div class="list-stats">
+                  <span class="stat-item">
+                    <i class="fas fa-calendar"></i>
+                    {{ deliverySchedules.length }} total
+                  </span>
+                  <span class="stat-item" *ngIf="getSchedulesByStatus('scheduled').length > 0">
+                    <i class="fas fa-clock"></i>
+                    {{ getSchedulesByStatus('scheduled').length }} scheduled
+                  </span>
+                  <span class="stat-item" *ngIf="getSchedulesByStatus('in_progress').length > 0">
+                    <i class="fas fa-truck"></i>
+                    {{ getSchedulesByStatus('in_progress').length }} in progress
+                  </span>
+                  <span class="stat-item" *ngIf="getSchedulesByStatus('completed').length > 0">
+                    <i class="fas fa-check"></i>
+                    {{ getSchedulesByStatus('completed').length }} completed
+                  </span>
+                </div>
+              </div>
+
+              <div class="schedule-items">
+                <div
+                  *ngFor="let schedule of deliverySchedules"
+                  class="schedule-item"
+                  [ngClass]="{
+                    'selected': selectedSchedule === schedule,
+                    'in-progress': schedule.status === 'in_progress',
+                    'completed': schedule.status === 'completed'
+                  }"
+                  (click)="selectedSchedule = schedule">
+
+                  <div class="schedule-info">
+                    <div class="schedule-header">
+                      <span class="schedule-id">#{{ schedule.id }}</span>
+                      <span class="schedule-status" [ngClass]="'status-' + schedule.status">
+                        {{ schedule.status | titlecase }}
+                      </span>
+                    </div>
+
+                    <div class="schedule-details">
+                      <div class="schedule-time">
+                        <i class="fas fa-clock"></i>
+                        {{ schedule.start_time }} - {{ schedule.end_time }}
+                      </div>
+                      <div class="schedule-date">
+                        <i class="fas fa-calendar"></i>
+                        {{ schedule.delivery_date | date:'mediumDate' }}
+                      </div>
+                    </div>
+
+                    <div class="schedule-customer" *ngIf="schedule.shipment?.customer?.name">
+                      <i class="fas fa-user"></i>
+                      {{ schedule.shipment.customer.name }}
+                    </div>
+
+                    <div class="schedule-address" *ngIf="schedule.shipment?.delivery_address">
+                      <i class="fas fa-map-marker-alt"></i>
+                      {{ schedule.shipment.delivery_address }}
+                    </div>
+                  </div>
+
+                  <div class="schedule-actions">
+                    <button
+                      class="action-button edit"
+                      (click)="editSchedule(schedule); $event.stopPropagation()"
+                      title="Edit Schedule">
+                      <i class="fas fa-edit"></i>
+                    </button>
+
+                    <button
+                      class="action-button delete"
+                      (click)="deleteSchedule(schedule); $event.stopPropagation()"
+                      title="Delete Schedule">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="empty-state" *ngIf="deliverySchedules.length === 0">
+                <div class="empty-icon">
+                  <i class="fas fa-calendar-times"></i>
+                </div>
+                <p class="empty-text">No delivery schedules found</p>
+                <button class="create-button" (click)="addNewSchedule()">
+                  <i class="fas fa-plus"></i>
+                  Create First Schedule
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Route View -->
+      <div class="view-container" *ngIf="activeView === 'route'">
+        <div class="route-section">
+          <div class="route-header">
+            <h3 class="section-title">Route Optimization</h3>
+            <div class="route-controls">
+              <button
+                class="optimize-button"
+                (click)="optimizeRoute()"
+                [disabled]="!canOptimize()">
+                <i class="fas fa-magic" *ngIf="!optimizationInProgress"></i>
+                <i class="fas fa-spinner fa-spin" *ngIf="optimizationInProgress"></i>
+                Optimize Route
+              </button>
+            </div>
+          </div>
+
+          <div class="route-content">
+            <app-route-display
+              [routePlanId]="selectedRoutePlan?.id"
+              [driverId]="activeDriverId"
+              [showOptimizationSuggestions]="enableRouteOptimization"
+              [showPerformanceMetrics]="true"
+              [showMapView]="showRouteMap"
+              [autoRefresh]="false"
+              (routeLoaded)="onRouteLoaded($event)"
+              (optimizationRequested)="onOptimizationRequested($event)">
+            </app-route-display>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conflicts View -->
+      <div class="view-container" *ngIf="activeView === 'conflicts'">
+        <div class="conflicts-section">
+          <div class="conflicts-header">
+            <h3 class="section-title">Scheduling Conflicts</h3>
+            <div class="conflicts-summary" *ngIf="scheduleConflicts">
+              <span class="summary-item high" *ngIf="getConflictsBySeverity('high').length > 0">
+                <i class="fas fa-exclamation-triangle"></i>
+                {{ getConflictsBySeverity('high').length }} High
+              </span>
+              <span class="summary-item medium" *ngIf="getConflictsBySeverity('medium').length > 0">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ getConflictsBySeverity('medium').length }} Medium
+              </span>
+              <span class="summary-item low" *ngIf="getConflictsBySeverity('low').length > 0">
+                <i class="fas fa-info-circle"></i>
+                {{ getConflictsBySeverity('low').length }} Low
+              </span>
+            </div>
+          </div>
+
+          <div class="conflicts-content">
+            <div class="conflicts-list" *ngIf="scheduleConflicts && scheduleConflicts.conflicts.length > 0">
+              <div
+                *ngFor="let conflict of scheduleConflicts.conflicts"
+                class="conflict-item"
+                [ngClass]="'conflict-' + conflict.severity">
+
+                <div class="conflict-header">
+                  <div class="conflict-type">
+                    <i class="fas" [ngClass]="getConflictIcon(conflict.conflict_type)"></i>
+                    <span class="type-label">{{ conflict.conflict_type | titlecase }}</span>
+                  </div>
+                  <div class="conflict-severity" [ngClass]="'severity-' + conflict.severity">
+                    {{ conflict.severity | titlecase }}
+                  </div>
+                </div>
+
+                <div class="conflict-description">
+                  {{ conflict.description }}
+                </div>
+
+                <div class="conflict-details">
+                  <div class="affected-schedules">
+                    <span class="detail-label">Affected Schedules:</span>
+                    <span class="schedule-ids">
+                      #{{ conflict.affected_schedules.join(', #') }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="conflict-resolution">
+                  <div class="resolution-suggestion">
+                    <strong>Suggested Resolution:</strong>
+                    {{ conflict.suggested_resolution }}
+                  </div>
+                </div>
+
+                <div class="conflict-actions">
+                  <button class="resolve-button" (click)="resolveConflict(conflict)">
+                    <i class="fas fa-check"></i>
+                    Apply Resolution
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="no-conflicts" *ngIf="!scheduleConflicts || scheduleConflicts.conflicts.length === 0">
+              <div class="no-conflicts-icon">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <p class="no-conflicts-text">No scheduling conflicts detected</p>
+              <p class="no-conflicts-subtext">All schedules are properly coordinated</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" [ngClass]="{ 'collapsed': isSidebarCollapsed }">
+      <div class="sidebar-content">
+        <!-- Quick Stats -->
+        <div class="stats-section">
+          <h4 class="sidebar-title">Quick Stats</h4>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value">{{ deliverySchedules.length }}</div>
+              <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ getSchedulesByStatus('scheduled').length }}</div>
+              <div class="stat-label">Scheduled</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ getSchedulesByStatus('in_progress').length }}</div>
+              <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ getSchedulesByStatus('completed').length }}</div>
+              <div class="stat-label">Complete</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Slots Preview -->
+        <div class="time-slots-section" *ngIf="showTimeSlots && deliverySlots.length > 0">
+          <h4 class="sidebar-title">Available Time Slots</h4>
+          <div class="time-slots-preview">
+            <div
+              *ngFor="let slot of deliverySlots | slice:0:3"
+              class="slot-preview-item"
+              [ngClass]="'slot-' + slot.availability">
+              <div class="slot-time">{{ slot.start_time }} - {{ slot.end_time }}</div>
+              <div class="slot-availability">
+                {{ slot.available_capacity }}/{{ slot.capacity }} available
+              </div>
+            </div>
+            <div class="view-all-link" *ngIf="deliverySlots.length > 3">
+              <a (click)="navigateToView('schedule')">View all time slots</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Route Summary -->
+        <div class="route-summary-section" *ngIf="selectedRoutePlan">
+          <h4 class="sidebar-title">Route Summary</h4>
+          <div class="route-summary">
+            <div class="summary-item">
+              <span class="summary-label">Distance:</span>
+              <span class="summary-value">{{ selectedRoutePlan.total_distance }} km</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Duration:</span>
+              <span class="summary-value">{{ selectedRoutePlan.estimated_time }} min</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Efficiency:</span>
+              <span class="summary-value">{{ (selectedRoutePlan.efficiency_score * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Status:</span>
+              <span class="summary-value" [ngClass]="'status-' + selectedRoutePlan.route_status">
+                {{ selectedRoutePlan.route_status | titlecase }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conflict Alerts -->
+        <div class="conflicts-section" *ngIf="hasConflicts()">
+          <h4 class="sidebar-title">Conflicts Alert</h4>
+          <div class="conflicts-alerts">
+            <div
+              *ngFor="let conflict of scheduleConflicts?.conflicts | slice:0:2"
+              class="conflict-alert"
+              [ngClass]="'alert-' + conflict.severity">
+              <div class="alert-icon">
+                <i class="fas" [ngClass]="getConflictIcon(conflict.conflict_type)"></i>
+              </div>
+              <div class="alert-content">
+                <div class="alert-type">{{ conflict.conflict_type | titlecase }}</div>
+                <div class="alert-description">{{ conflict.description }}</div>
+              </div>
+            </div>
+            <div class="view-all-conflicts" *ngIf="scheduleConflicts?.conflicts?.length > 2">
+              <a (click)="navigateToView('conflicts')">View all conflicts</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="actions-section">
+          <h4 class="sidebar-title">Quick Actions</h4>
+          <div class="quick-actions">
+            <button
+              class="quick-action"
+              (click)="addNewSchedule()"
+              *ngIf="mode === 'scheduling'">
+              <i class="fas fa-plus"></i>
+              Add Schedule
+            </button>
+
+            <button
+              class="quick-action"
+              (click)="optimizeRoute()"
+              *ngIf="enableRouteOptimization">
+              <i class="fas fa-magic"></i>
+              Optimize Route
+            </button>
+
+            <button
+              class="quick-action"
+              (click)="refresh()">
+              <i class="fas fa-sync-alt"></i>
+              Refresh Data
+            </button>
+
+            <button
+              class="quick-action"
+              (click)="exportSchedule()">
+              <i class="fas fa-download"></i>
+              Export Schedule
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

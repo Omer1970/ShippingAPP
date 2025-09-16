@@ -4,6 +4,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ShipmentController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\DeliverySignatureController;
+use App\Http\Controllers\Api\DeliveryNoteController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +38,38 @@ Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::get('/customer/{customerId}', [OrderController::class, 'byCustomer'])->name('orders.byCustomer');
     Route::get('/status/{status}', [OrderController::class, 'byStatus'])->name('orders.byStatus');
     Route::post('/{id}/refresh', [OrderController::class, 'refresh'])->name('orders.refresh');
+});
+
+// Protected Delivery Routes (require authentication)
+Route::middleware('auth:sanctum')->prefix('deliveries')->group(function () {
+    Route::get('/', [DeliveryController::class, 'stats'])->name('deliveries.stats');
+    Route::get('/{shipmentId}', [DeliveryController::class, 'show'])->name('deliveries.show');
+    Route::get('/user/{userId}', [DeliveryController::class, 'userDeliveries'])->name('deliveries.user');
+    
+    Route::post('/{shipmentId}/confirm', [DeliveryController::class, 'confirm'])->name('deliveries.confirm');
+    Route::put('/{deliveryId}/status', [DeliveryController::class, 'updateStatus'])->name('deliveries.updateStatus');
+    Route::post('/{deliveryId}/photo', [DeliveryController::class, 'uploadPhoto'])->name('deliveries.uploadPhoto');
+    Route::delete('/{deliveryId}/photo/{photoId}', [DeliveryController::class, 'deletePhoto'])->name('deliveries.deletePhoto');
+});
+
+// Protected Signature Routes (require authentication)
+Route::middleware('auth:sanctum')->prefix('signatures')->group(function () {
+    Route::post('/validate', [DeliverySignatureController::class, 'validateTemplate'])->name('signatures.validate');
+    Route::get('/{signatureId}', [DeliverySignatureController::class, 'show'])->name('signatures.show');
+    Route::delete('/{signatureId}', [DeliverySignatureController::class, 'destroy'])->name('signatures.destroy');
+    Route::get('/template', [DeliverySignatureController::class, 'template'])->name('signatures.template');
+});
+
+// Protected Delivery Signature Routes
+Route::middleware('auth:sanctum')->prefix('deliveries')->group(function () {
+    Route::post('/{deliveryId}/signature', [DeliverySignatureController::class, 'capture'])->name('deliveries.signature.capture');
+    Route::put('/{deliveryId}/signature', [DeliverySignatureController::class, 'update'])->name('deliveries.signature.update');
+});
+
+// Protected Delivery Note Routes
+Route::middleware('auth:sanctum')->prefix('deliveries')->group(function () {
+    Route::get('/{deliveryId}/note', [DeliveryNoteController::class, 'generate'])->name('deliveries.note.generate');
+    Route::post('/{deliveryId}/note', [DeliveryNoteController::class, 'create'])->name('deliveries.note.create');
 });
 
 // Health check route

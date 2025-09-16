@@ -1,0 +1,280 @@
+<div class="time-slot-picker" [ngClass]="'mode-' + bookingMode">
+  <!-- Header -->
+  <div class="picker-header">
+    <div class="header-title">
+      <h1 class="picker-title">
+        <i class="fas fa-clock"></i>
+        Time Slot Picker
+      </h1>
+      <p class="picker-subtitle">{{ getBookingModeText() }}</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="back-button" (click)="goBack()">
+        <i class="fas fa-arrow-left"></i>
+        Back
+      </button>
+
+      <div class="mode-selector">
+        <button
+          *ngFor="let mode of ['single', 'multiple', 'bulk']"
+          class="mode-button"
+          [ngClass]="{ 'active': bookingMode === mode }"
+          (click)="onModeChange(mode)">
+          {{ mode | titlecase }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls Bar -->
+  <div class="controls-bar">
+    <div class="control-group">
+      <label class="control-label">Driver:</label>
+      <select
+        class="control-select"
+        [(ngModel)]="driverId"
+        (change)="onDriverSelected(driverId)"
+        [disabled]="isLoading()">
+        <option [ngValue]="null">Select Driver</option>
+        <option *ngFor="let driver of availableDrivers" [ngValue]="driver">
+          Driver #{{ driver }}
+        </option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label">Date:</label>
+      <input
+        type="date"
+        class="control-input"
+        [(ngModel)]="selectedDate"
+        (change)="onDateSelected(selectedDate)"
+        [min]="todayDate">
+    </div>
+
+    <div class="control-group">
+      <button class="refresh-button" (click)="refreshTimeSlots()" [disabled]="isLoading()">
+        <i class="fas fa-sync-alt" [ngClass]="{ 'fa-spin': isLoading() }"></i>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+    </div>
+    <p class="loading-text">Loading time slots...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" *ngIf="hasError()">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <p class="error-text">{{ getErrorMessage() | async }}</p>
+    <button class="retry-button" (click)="refreshTimeSlots()">
+      <i class="fas fa-sync-alt"></i> Retry
+    </button>
+  </div>
+
+  <!-- No Driver Selected -->
+  <div class="no-driver-state" *ngIf="!hasDriverSelected() && !isLoading() && !hasError()">
+    <div class="no-driver-icon">
+      <i class="fas fa-user-times"></i>
+    </div>
+    <h3 class="no-driver-title">Select a Driver</h3>
+    <p class="no-driver-text">Please select a driver to view available time slots</p>
+  </div>
+
+  <!-- Time Slots Content -->
+  <div class="picker-content" *ngIf="hasDriverSelected() && !isLoading() && !hasError()">
+    <!-- Time Slots Grid -->
+    <div class="time-slots-grid">
+      <div
+        *ngFor="let slot of timeSlots"
+        class="time-slot-card"
+        [ngClass]="{
+          'selected': isSlotSelected(slot),
+          'selectable': isSlotSelectable(slot),
+          'unselectable': !isSlotSelectable(slot),
+          [getAvailabilityClass(slot.availability)]: true
+        }"
+        (click)="onTimeSlotSelection(slot)">
+
+        <!-- Slot Header -->
+        <div class="slot-header">
+          <div class="slot-time">
+            <span class="start-time">{{ slot.start_time }}</span>
+            <span class="time-separator">-</span>
+            <span class="end-time">{{ slot.end_time }}</span>
+          </div>
+          <div class="slot-status">
+            <i
+              class="fas status-icon"
+              [ngClass]="getStatusIcon(slot.availability)"
+              [title]="slot.availability | titlecase">
+            </i>
+          </div>
+        </div>
+
+        <!-- Slot Label -->
+        <div class="slot-label">
+          <span class="label-text">{{ slot.slot_label }}</span>
+        </div>
+
+        <!-- Availability Details -->
+        <div class="slot-availability">
+          <div class="availability-bar">
+            <div
+              class="availability-fill"
+              [style.width.%]="getAvailabilityPercentage(slot)">
+            </div>
+          </div>
+          <div class="availability-details">
+            <span class="available">{{ slot.available_capacity }} available</span>
+            <span class="total">of {{ slot.capacity }}</span>
+          </div>
+        </div>
+
+        <!-- Slot Actions -->
+        <div class="slot-actions" *ngIf="slot.is_available && bookingMode === 'single'">
+          <button
+            class="book-button"
+            (click)="onTimeSlotSelection(slot); $event.stopPropagation()"
+            *ngIf="!isSlotSelected(slot)">
+            <i class="fas fa-calendar-plus"></i>
+            Book
+          </button>
+
+          <div class="selected-indicator" *ngIf="isSlotSelected(slot)">
+            <i class="fas fa-check-circle"></i>
+            <span>Selected</span>
+          </div>
+        </div>
+
+        <!-- Selection Indicator -->
+        <div class="selection-indicator" *ngIf="isSlotSelected(slot) && bookingMode !== 'single'">
+          <i class="fas fa-check-circle"></i>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="!hasTimeSlots()">
+        <div class="empty-icon">
+          <i class="fas fa-calendar-times"></i>
+        </div>
+        <h3 class="empty-title">No Time Slots Available</h3>
+        <p class="empty-text">No time slots are available for the selected date and driver</p>
+      </div>
+    </div>
+
+    <!-- Multi-Selection Summary -->
+    <div class="multi-selection-summary" *ngIf="bookingMode !== 'single' && selectedTimeSlots.length > 0">
+      <div class="summary-header">
+        <h4>Selected Time Slots ({{ selectedTimeSlots.length }})</h4>
+        <button class="clear-selection" (click)="clearSelection()">
+          <i class="fas fa-times"></i>
+          Clear All
+        </button>
+      </div>
+
+      <div class="selected-slots">
+        <div
+          *ngFor="let slot of selectedTimeSlots"
+          class="selected-slot-item">
+          <div class="slot-info">
+            <span class="slot-time">{{ slot.start_time }} - {{ slot.end_time }}</span>
+            <span class="slot-label">{{ slot.slot_label }}</span>
+          </div>
+          <button class="remove-slot" (click)="onTimeSlotSelection(slot)">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="selection-actions">
+        <button
+          class="book-selected-button"
+          (click)="onBookingAttempt()"
+          [disabled]="!canBook()">
+          <i class="fas fa-calendar-check"></i>
+          Book Selected Slots
+        </button>
+      </div>
+    </div>
+
+    <!-- Actions and Summary -->
+    <div class="actions-panel">
+      <div class="panel-header">
+        <h4 class="panel-title">Booking Summary</h4>
+        <div class="panel-actions">
+          <button class="action-button" (click)="viewSchedule()">
+            <i class="fas fa-calendar"></i>
+            View Schedule
+          </button>
+          <button class="action-button" (click)="goToRouteOptimization()" [disabled]="selectedTimeSlots.length === 0">
+            <i class="fas fa-route"></i>
+            Optimize Route
+          </button>
+          <button class="action-button" (click)="exportTimeSlots()" [disabled]="selectedTimeSlots.length === 0">
+            <i class="fas fa-download"></i>
+            Export
+          </button>
+        </div>
+      </div>
+
+      <div class="booking-summary">
+        <div class="summary-stats">
+          <div class="stat-item">
+            <div class="stat-value">{{ selectedTimeSlots.length }}</div>
+            <div class="stat-label">Selected Slots</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ getTotalTime() }} min</div>
+            <div class="stat-label">Total Time</div>
+          </div>
+        </div>
+
+        <div class="booking-actions">
+          <button
+            class="book-button primary"
+            (click)="onBookingAttempt()"
+            [disabled]="!canBook()">
+            <i class="fas fa-calendar-check"></i>
+            {{ getBookingButtonText() }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Confirmation -->
+  <div class="booking-confirmation" *ngIf="bookingSuccess || bookingError">
+    <div class="confirmation-message" [ngClass]="{ 'success': bookingSuccess, 'error': bookingError }">
+      <div class="confirmation-icon">
+        <i class="fas" [ngClass]="bookingSuccess ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+      </div>
+      <div class="confirmation-content">
+        <h4 class="confirmation-title">{{ bookingSuccess ? 'Booking Successful' : 'Booking Failed' }}</h4>
+        <p class="confirmation-text">{{ bookingSuccess ? getConfirmationMessage() : bookingError }}</p>
+        <div class="confirmation-actions">
+          <button
+            class="confirmation-button primary"
+            (click)="viewSchedule()">
+            <i class="fas fa-calendar"></i>
+            View Schedule
+          </button>
+          <button
+            class="confirmation-button secondary"
+            (click)="clearSelection()">
+            <i class="fas fa-refresh"></i>
+            Book More
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

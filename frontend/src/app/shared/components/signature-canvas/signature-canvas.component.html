@@ -1,0 +1,133 @@
+<div class="signature-canvas-container">
+  <!-- Canvas Area -->
+  <div class="canvas-wrapper">
+    <canvas
+      #signatureCanvas
+      [style.width.px]="width"
+      [style.height.px]="height"
+      [attr.aria-label]="'Signature canvas - draw your signature here'"
+      role="application"
+      tabindex="0">
+    </canvas>
+    
+    <!-- Overlay Canvas (guide lines and feedback) -->
+    <canvas
+      #overlayCanvas
+      class="overlay-canvas"
+      [style.width.px]="width"
+      [style.height.px]="height"
+      [style.left]="'0'"
+      [style.top]="'0'">
+    </canvas>
+  </div>
+
+  <!-- Quality Indicator -->
+  <div *ngIf="showQualityIndicator && allPaths.length > 0" class="quality-indicator">
+    <div class="quality-bar" 
+         [class.poor]="signatureQuality < 0.3"
+         [class.fair]="signatureQuality >= 0.3 && signatureQuality < 0.6"
+         [class.good]="signatureQuality >= 0.6 && signatureQuality < 0.8"
+         [class.excellent]="signatureQuality >= 0.8">
+      <div class="quality-fill" [style.width.%]="signatureQuality * 100"></div>
+    </div>
+    <div class="quality-text">
+      <span *ngIf="signatureQuality < 0.3">Poor Signature Quality</span>
+      <span *ngIf="signatureQuality >= 0.3 && signatureQuality < 0.6">Fair Signature Quality</span>
+      <span *ngIf="signatureQuality >= 0.6 && signatureQuality < 0.8">Good Signature Quality</span>
+      <span *ngIf="signatureQuality >= 0.8">Excellent Signature Quality</span>
+      <span class="quality-score">({{ (signatureQuality * 100) | number:'1.0-0' }}%)</span>
+    </div>
+  </div>
+
+  <!-- Quality Issues & Recommendations -->
+  <div *ngIf="qualityIssues.length > 0 || qualityRecommendations.length > 0" class="quality-feedback">
+    <div *ngIf="qualityIssues.length > 0" class="quality-issues">
+      <mat-icon>warning</mat-icon>
+      <ul>
+        <li *ngFor="let issue of qualityIssues">{{ issue }}</li>
+      </ul>
+    </div>
+    <div *ngIf="qualityRecommendations.length > 0" class="quality-recommendations">
+      <mat-icon>info</mat-icon>
+      <ul>
+        <li *ngFor="let rec of qualityRecommendations">{{ rec }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="signature-instructions">
+    <div class="instruction-item">
+      <mat-icon>pan_tool</mat-icon>
+      <span>Use your finger or stylus to draw</span>
+    </div>
+    <div class="instruction-item">
+      <mat-icon>gesture</mat-icon>
+      <span>Sign clearly within the designated area</span>
+    </div>
+    <div class="instruction-item">
+      <mat-icon>keyboard</mat-icon>
+      <span>Press Delete/Backspace to clear, Enter to submit</span>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div *ngIf="showControls" class="signature-controls">
+    <div class="control-group">
+      <button 
+        mat-stroked-button 
+        color="warn" 
+        (click)="clearCanvas()" 
+        [disabled]="allPaths.length === 0"
+        class="clear-button">
+        <mat-icon>delete</mat-icon>
+        Clear
+      </button>
+      
+      <button 
+        mat-stroked-button 
+        (click)="undo()" 
+        [disabled]="allPaths.length === 0 || isDrawing"
+        class="undo-button">
+        <mat-icon>undo</mat-icon>
+        Undo
+      </button>
+    </div>
+
+    <div class="control-group">
+      <button 
+        mat-raised-button 
+        color="primary" 
+        (click)="submitSignature()" 
+        [disabled]="allPaths.length === 0 || isDrawing || !isQualityValid"
+        class="submit-button">
+        <mat-icon>check_circle</mat-icon>
+        Submit Signature
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Messages -->
+  <div class="signature-status">
+    <div *ngIf="isDrawing" class="drawing-status">
+      <mat-icon>gesture</mat-icon>
+      <span>Drawing...</span>
+    </div>
+    
+    <div *ngIf="!isDrawing && allPaths.length > 0 && !isQualityValid" class="quality-warning">
+      <mat-icon>warning</mat-icon>
+      <span>Signature quality is below minimum threshold</span>
+    </div>
+    
+    <div *ngIf="isQualityValid" class="quality-valid">
+      <mat-icon>check_circle</mat-icon>
+      <span>Signature quality meets requirements</span>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isCapturing && !isDrawing" class="capture-loading">
+    <mat-spinner diameter="24"></mat-spinner>
+    <span>Analyzing signature...</span>
+  </div>
+</div>

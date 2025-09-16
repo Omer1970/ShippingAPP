@@ -1,0 +1,604 @@
+<div class="route-display" [ngClass]="{ 'compact-view': compactView, 'dark-theme': theme === 'dark' }">
+  <!-- Header Controls -->
+  <div class="route-header" *ngIf="!compactView">
+    <div class="header-title">
+      <h3 class="display-title">
+        <i class="fas fa-route"></i>
+        Route Display
+      </h3>
+      <div class="route-summary" *ngIf="currentRoutePlan">
+        <span class="summary-item">
+          <i class="fas fa-map-marker-alt"></i>
+          {{ currentRoutePlan.deliveries?.length || 0 }} stops
+        </span>
+        <span class="summary-item" *ngIf="currentRoutePlan.total_distance">
+          <i class="fas fa-road"></i>
+          {{ currentRoutePlan.total_distance }} km
+        </span>
+        <span class="summary-item" *ngIf="currentRoutePlan.estimated_time">
+          <i class="fas fa-clock"></i>
+          {{ currentRoutePlan.estimated_time }} min
+        </span>
+        <span class="summary-item" *ngIf="currentRoutePlan.efficiency_score">
+          <i class="fas fa-chart-line"></i>
+          {{ (currentRoutePlan.efficiency_score * 100).toFixed(1) }}% efficient
+        </span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="control-buttons">
+        <button
+          class="refresh-button"
+          (click)="refresh()"
+          [disabled]="isLoading()"
+          title="Refresh Route">
+          <i class="fas fa-sync-alt" [ngClass]="{ 'fa-spin': isLoading() }"></i>
+        </button>
+
+        <button
+          *ngIf="showOptimizationSuggestions"
+          class="optimization-button"
+          (click)="toggleOptimizationPanel()"
+          [ngClass]="{ 'active': showOptimizationPanel }"
+          title="Route Optimization">
+          <i class="fas fa-magic"></i>
+        </button>
+
+        <button
+          *ngIf="showComparison && comparisonMetrics"
+          class="comparison-button"
+          (click)="toggleComparisonPanel()"
+          [ngClass]="{ 'active': showComparisonPanel }"
+          title="Route Comparison">
+          <i class="fas fa-balance-scale"></i>
+        </button>
+
+        <button
+          *ngIf="currentRoutePlan?.can_start && currentRoutePlan?.route_status === 'planned'"
+          class="start-route-button"
+          (click)="startRoute()"
+          [disabled]="optimizationInProgress">
+          <i class="fas fa-play"></i>
+          Start Route
+        </button>
+
+        <button
+          *ngIf="currentRoutePlan?.route_status === 'active'"
+          class="complete-route-button"
+          (click)="completeRoute()">
+          <i class="fas fa-check"></i>
+          Complete Route
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+    </div>
+    <p class="loading-text">Loading route data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" *ngIf="hasError()">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <p class="error-text">{{ getErrorMessage() | async }}</p>
+    <button class="retry-button" (click)="refresh()">
+      <i class="fas fa-sync-alt"></i> Retry
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading() && !hasError() && !hasRouteData()">
+    <div class="empty-icon">
+      <i class="fas fa-route"></i>
+    </div>
+    <p class="empty-text">No route data available</p>
+  </div>
+
+  <!-- Route Content -->
+  <div class="route-content" *ngIf="!isLoading() && !hasError() && hasRouteData()">
+    <!-- Route Overview -->
+    <div class="route-overview">
+      <div class="overview-card">
+        <div class="card-header">
+          <h4 class="card-title">Route Overview</h4>
+          <div class="route-status">
+            <span
+              class="status-badge"
+              [ngClass]="'status-' + getStatusColor(currentRoutePlan.route_status)">
+              {{ currentRoutePlan.route_status | titlecase }}
+            </span>
+          </div>
+        </div>
+
+        <div class="route-info">
+          <div class="info-item">
+            <div class="info-label">Route ID</div>
+            <div class="info-value">#{{ currentRoutePlan.id }}</div>
+          </div>
+
+          <div class="info-item" *ngIf="currentRoutePlan.driver_name">
+            <div class="info-label">Driver</div>
+            <div class="info-value">{{ currentRoutePlan.driver_name }}</div>
+          </div>
+
+          <div class="info-item" *ngIf="currentRoutePlan.route_date">
+            <div class="info-label">Date</div>
+            <div class="info-value">{{ currentRoutePlan.route_date | date:'mediumDate' }}</div>
+          </div>
+
+          <div class="info-item" *ngIf="currentRoutePlan.optimization_algorithm">
+            <div class="info-label">Algorithm</div>
+            <div class="info-value">{{ currentRoutePlan.optimization_algorithm | titlecase }}</div>
+          </div>
+
+          <div class="info-item" *ngIf="currentRoutePlan.efficiency_score">
+            <div class="info-label">Efficiency</div>
+            <div class="info-value">
+              <div class="efficiency-indicator">
+                <div
+                  class="efficiency-bar"
+                  [style.width.%]="currentRoutePlan.efficiency_score * 100"
+                  [ngClass]="'efficiency-' + getEfficiencyScoreColor(currentRoutePlan.efficiency_score)">
+                </div>
+              </div>
+              <span class="efficiency-text">
+                {{ (currentRoutePlan.efficiency_score * 100).toFixed(1) }}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Metrics -->
+      <div class="metrics-card" *ngIf="showPerformanceMetrics && routeMetrics">
+        <div class="card-header">
+          <h4 class="card-title">Performance Metrics</h4>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <div class="metric-icon">
+              <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ routeMetrics.stopCount }}</div>
+              <div class="metric-label">Total Stops</div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ routeMetrics.totalDuration }}</div>
+              <div class="metric-label">Duration (min)</div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-icon">
+              <i class="fas fa-road"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ routeMetrics.totalDistance }}</div>
+              <div class="metric-label">Distance (km)</div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-icon">
+              <i class="fas fa-gas-pump"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ routeMetrics.fuelEfficiency }}</div>
+              <div class="metric-label">MPG</div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ (routeMetrics.optimizationScore * 100).toFixed(0) }}%</div>
+              <div class="metric-label">Optimized</div>
+            </div>
+          </div>
+
+          <div class="metric-item" *ngIf="routeMetrics.completionRate !== undefined">
+            <div class="metric-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ routeMetrics.completionRate.toFixed(0) }}%</div>
+              <div class="metric-label">Complete</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map View -->
+    <div class="map-section" *ngIf="showMapView">
+      <div class="map-card">
+        <div class="card-header">
+          <h4 class="card-title">Route Map</h4>
+          <div class="map-controls" *ngIf="mapLoaded">
+            <button class="map-control" (click)="zoomIn()" title="Zoom In">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button class="map-control" (click)="zoomOut()" title="Zoom Out">
+              <i class="fas fa-minus"></i>
+            </button>
+            <button class="map-control" (click)="centerMap()" title="Center Map">
+              <i class="fas fa-crosshairs"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="map-container">
+          <div class="map-placeholder" *ngIf="!mapLoaded">
+            <div class="placeholder-content">
+              <i class="fas fa-map"></i>
+              <p>Map loading...</p>
+              <div class="map-loader"></div>
+            </div>
+          </div>
+
+          <div class="map-content" *ngIf="mapLoaded">
+            <!-- Map integration would go here -->
+            <div class="map-placeholder-content">
+              <div class="route-path">
+                <div
+                  class="route-line"
+                  *ngFor="let waypoint of currentRoutePlan.waypoints; let i = index"
+                  [ngClass]="{ 'active': i === currentRoutePlan.route_progress }">
+                  <div class="waypoint-marker" [ngClass]="'waypoint-' + (i + 1)">
+                    <span class="waypoint-number">{{ i + 1 }}</span>
+                  </div>
+                  <div class="waypoint-info">
+                    <div class="waypoint-address">{{ waypoint.address }}</div>
+                    <div class="waypoint-coordinates">
+                      {{ waypoint.latitude }}, {{ waypoint.longitude }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimization Panel -->
+    <div class="optimization-panel" *ngIf="showOptimizationPanel && showOptimizationSuggestions">
+      <div class="optimization-card">
+        <div class="card-header">
+          <h4 class="card-title">
+            <i class="fas fa-magic"></i>
+            Route Optimization
+          </h4>
+          <button class="close-panel" (click)="toggleOptimizationPanel()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="optimization-content">
+          <div class="current-route-info">
+            <h5>Current Route Performance</h5>
+            <div class="performance-bars">
+              <div class="performance-item">
+                <label>Distance Efficiency</label>
+                <div class="performance-bar">
+                  <div
+                    class="performance-fill"
+                    [style.width.%]="currentRoutePlan.efficiency_score * 100"
+                    [ngClass]="getEfficiencyScoreColor(currentRoutePlan.efficiency_score)">
+                  </div>
+                </div>
+                <span class="performance-value">{{ (currentRoutePlan.efficiency_score * 100).toFixed(1) }}%</span>
+              </div>
+
+              <div class="performance-item" *ngIf="routeMetrics">
+                <label>Time Efficiency</label>
+                <div class="performance-bar">
+                  <div
+                    class="performance-fill"
+                    [style.width.%]="routeMetrics.avgStopTime / 30 * 100"
+                    [ngClass]="getEfficiencyScoreColor(1 - (routeMetrics.avgStopTime / 30))">
+                  </div>
+                </div>
+                <span class="performance-value">{{ routeMetrics.avgStopTime.toFixed(1) }} min/stop</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="optimization-actions">
+            <button
+              class="optimize-button"
+              (click)="requestOptimization()"
+              [disabled]="optimizationInProgress">
+              <i class="fas fa-magic" *ngIf="!optimizationInProgress"></i>
+              <i class="fas fa-spinner fa-spin" *ngIf="optimizationInProgress"></i>
+              {{ optimizationInProgress ? 'Optimizing...' : 'Optimize Route' }}
+            </button>
+          </div>
+
+          <div class="route-suggestions" *ngIf="routeSuggestions.length > 0">
+            <h5>Optimization Suggestions</h5>
+            <div class="suggestions-list">
+              <div
+                *ngFor="let suggestion of routeSuggestions"
+                class="suggestion-item"
+                [ngClass]="{ 'selected': selectedSuggestion === suggestion }">
+                <div class="suggestion-radio">
+                  <input
+                    type="radio"
+                    name="suggestion"
+                    [id]="'suggestion-' + suggestion.route_id"
+                    [value]="suggestion"
+                    [(ngModel)]="selectedSuggestion"
+                    (change)="selectSuggestion(suggestion)">
+                  <label [for]="'suggestion-' + suggestion.route_id">
+                    <div class="suggestion-content">
+                      <div class="suggestion-title">
+                        Route {{ suggestion.route_id }}
+                      </div>
+                      <div class="suggestion-details">
+                        <span class="detail-item">
+                          <i class="fas fa-road"></i>
+                          {{ suggestion.total_distance }} km
+                        </span>
+                        <span class="detail-item">
+                          <i class="fas fa-clock"></i>
+                          {{ suggestion.estimated_time }} min
+                        </span>
+                        <span class="detail-item">
+                          <i class="fas fa-chart-line"></i>
+                          {{ (suggestion.efficiency_score * 100).toFixed(1) }}%
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="suggestion-actions" *ngIf="selectedSuggestion">
+              <button
+                class="apply-suggestion-button"
+                (click)="applyOptimizationSuggestion()"
+                [disabled]="optimizationInProgress">
+                <i class="fas fa-check"></i>
+                Apply This Route
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Panel -->
+    <div class="comparison-panel" *ngIf="showComparisonPanel && comparisonMetrics">
+      <div class="comparison-card">
+        <div class="card-header">
+          <h4 class="card-title">
+            <i class="fas fa-balance-scale"></i>
+            Route Comparison
+          </h4>
+          <button class="close-panel" (click)="toggleComparisonPanel()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="comparison-content">
+          <div class="comparison-metrics">
+            <div class="comparison-metric" *ngIf="comparisonMetrics.timeSaved !== undefined">
+              <div class="metric-icon">
+                <i class="fas fa-clock"></i>
+              </div>
+              <div class="metric-details">
+                <div class="metric-value" [ngClass]="{ 'positive': comparisonMetrics.timeSaved > 0, 'negative': comparisonMetrics.timeSaved < 0 }">
+                  {{ comparisonMetrics.timeSaved > 0 ? '+' : '' }}{{ comparisonMetrics.timeSaved }} min
+                </div>
+                <div class="metric-label">Time Saved</div>
+              </div>
+            </div>
+
+            <div class="comparison-metric" *ngIf="comparisonMetrics.distanceSaved !== undefined">
+              <div class="metric-icon">
+                <i class="fas fa-road"></i>
+              </div>
+              <div class="metric-details">
+                <div class="metric-value" [ngClass]="{ 'positive': comparisonMetrics.distanceSaved > 0, 'negative': comparisonMetrics.distanceSaved < 0 }">
+                  {{ comparisonMetrics.distanceSaved > 0 ? '+' : '' }}{{ comparisonMetrics.distanceSaved }} km
+                </div>
+                <div class="metric-label">Distance Saved</div>
+              </div>
+            </div>
+
+            <div class="comparison-metric" *ngIf="comparisonMetrics.fuelSaved !== undefined">
+              <div class="metric-icon">
+                <i class="fas fa-gas-pump"></i>
+              </div>
+              <div class="metric-details">
+                <div class="metric-value" [ngClass]="{ 'positive': comparisonMetrics.fuelSaved > 0, 'negative': comparisonMetrics.fuelSaved < 0 }">
+                  {{ comparisonMetrics.fuelSaved > 0 ? '+' : '' }}{{ comparisonMetrics.fuelSaved }} L
+                </div>
+                <div class="metric-label">Fuel Saved</div>
+              </div>
+            </div>
+
+            <div class="comparison-metric" *ngIf="comparisonMetrics.efficiencyGain !== undefined">
+              <div class="metric-icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="metric-details">
+                <div class="metric-value" [ngClass]="{ 'positive': comparisonMetrics.efficiencyGain > 0, 'negative': comparisonMetrics.efficiencyGain < 0 }">
+                  {{ comparisonMetrics.efficiencyGain > 0 ? '+' : '' }}{{ (comparisonMetrics.efficiencyGain * 100).toFixed(1) }}%
+                </div>
+                <div class="metric-label">Efficiency Gain</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Route Details -->
+    <div class="route-details">
+      <div class="details-card">
+        <div class="card-header">
+          <h4 class="card-title">Route Details</h4>
+        </div>
+
+        <div class="details-content">
+          <div class="progress-section" *ngIf="currentRoutePlan.route_progress !== undefined">
+            <div class="progress-header">
+              <span class="progress-label">Route Progress</span>
+              <span class="progress-text">
+                {{ currentRoutePlan.route_progress }} of {{ currentRoutePlan.deliveries?.length || 0 }} stops
+              </span>
+            </div>
+            <div class="progress-bar">
+              <div
+                class="progress-fill"
+                [style.width.%]="(currentRoutePlan.route_progress / (currentRoutePlan.deliveries?.length || 1)) * 100"
+                [ngClass]="'progress-' + getStatusColor(currentRoutePlan.route_status)">
+              </div>
+            </div>
+          </div>
+
+          <div class="deliveries-list" *ngIf="currentRoutePlan.deliveries && currentRoutePlan.deliveries.length > 0">
+            <h5 class="deliveries-title">Delivery Sequence</h5>
+            <div class="delivery-items">
+              <div
+                *ngFor="let delivery of currentRoutePlan.deliveries; let i = index"
+                class="delivery-item"
+                [ngClass]="{
+                  'active': i === currentRoutePlan.route_progress,
+                  'completed': i < currentRoutePlan.route_progress,
+                  'pending': i > currentRoutePlan.route_progress
+                }"
+                (click)="showStopDetails(delivery)">
+
+                <div class="delivery-sequence">
+                  <span class="sequence-number">{{ i + 1 }}</span>
+                </div>
+
+                <div class="delivery-info">
+                  <div class="delivery-address">
+                    {{ delivery.shipment?.delivery_address || 'Address not available' }}
+                  </div>
+                  <div class="delivery-details">
+                    <span class="delivery-customer" *ngIf="delivery.shipment?.customer?.name">
+                      {{ delivery.shipment.customer.name }}
+                    </span>
+                    <span class="delivery-status" [ngClass]="'status-' + getStatusColor(delivery.status)">
+                      {{ delivery.status | titlecase }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="delivery-actions">
+                  <button class="view-details-button" title="View Details">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+
+                <div class="delivery-status-indicator">
+                  <i class="fas" [ngClass]="getDeliveryStatusIcon(delivery.status)"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alternatives-section" *ngIf="currentRoutePlan.alternatives && currentRoutePlan.alternatives.length > 0">
+            <h5 class="alternatives-title">Alternative Routes</h5>
+            <div class="alternatives-list">
+              <div
+                *ngFor="let alternative of currentRoutePlan.alternatives"
+                class="alternative-item">
+                <div class="alternative-info">
+                  <div class="alternative-description">
+                    {{ alternative.description }}
+                  </div>
+                  <div class="alternative-metrics">
+                    <span class="metric">
+                      <i class="fas fa-road"></i>
+                      {{ alternative.total_distance }} km
+                    </span>
+                    <span class="metric">
+                      <i class="fas fa-clock"></i>
+                      {{ alternative.estimated_time }} min
+                    </span>
+                    <span class="metric">
+                      <i class="fas fa-chart-line"></i>
+                      {{ (alternative.efficiency_score * 100).toFixed(1) }}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Route Start/Completion Modals -->
+  <div class="route-modal" *ngIf="showStartModal">
+    <div class="modal-overlay" (click)="closeStartModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4>Start Route</h4>
+        <button class="modal-close" (click)="closeStartModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to start this route?</p>
+        <p class="route-info">
+          Route #{{ currentRoutePlan.id }} with {{ currentRoutePlan.deliveries?.length || 0 }} deliveries
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-button secondary" (click)="closeStartModal()">Cancel</button>
+        <button class="modal-button primary" (click)="confirmStartRoute()">Start Route</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="route-modal" *ngIf="showCompleteModal">
+    <div class="modal-overlay" (click)="closeCompleteModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4>Complete Route</h4>
+        <button class="modal-close" (click)="closeCompleteModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Route completion summary:</p>
+        <ul class="completion-stats">
+          <li>Total deliveries: {{ currentRoutePlan.deliveries?.length || 0 }}</li>
+          <li>Completed: {{ currentRoutePlan.route_progress || 0 }}</li>
+          <li>Duration: {{ routeMetrics?.totalDuration || 'N/A' }} minutes</li>
+          <li>Distance: {{ currentRoutePlan.total_distance || 'N/A' }} km</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-button secondary" (click)="closeCompleteModal()">Cancel</button>
+        <button class="modal-button primary" (click)="confirmCompleteRoute()">Complete Route</button>
+      </div>
+    </div>
+  </div>
+</div>

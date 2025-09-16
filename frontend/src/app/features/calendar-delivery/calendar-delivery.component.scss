@@ -1,0 +1,547 @@
+.calendar-delivery-container {
+  padding: 1rem;
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+
+      .calendar-title {
+        margin: 0;
+        font-size: 1.8rem;
+        color: #495057;
+
+        i {
+          margin-right: 0.5rem;
+          color: #007bff;
+        }
+      }
+
+      .view-controls {
+        .btn-group {
+          border-radius: 6px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+          .btn {
+            border: none;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+
+            &.active {
+              background-color: #007bff;
+              color: white;
+              box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            &:not(.active):hover {
+              background-color: #f8f9fa;
+            }
+          }
+        }
+      }
+    }
+
+    .header-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+
+      .navigation-controls {
+        display: flex;
+        gap: 0.5rem;
+
+        .btn {
+          padding: 0.5rem 0.75rem;
+          min-width: 3rem;
+
+          &:first-child,
+          &:last-child {
+            padding: 0.5rem 0.5rem;
+          }
+        }
+      }
+    }
+
+    .header-right {
+      display: flex;
+      gap: 0.5rem;
+
+      .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+
+        &:hover:not(:disabled) {
+          background-color: #218838;
+          border-color: #1e7e34;
+        }
+      }
+
+      .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+
+        &:hover:not(:disabled) {
+          background-color: #0056b3;
+          border-color: #004085;
+        }
+      }
+    }
+  }
+
+  .calendar-controls {
+    margin-bottom: 1rem;
+
+    .filter-controls {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+
+      .form-row {
+        align-items: flex-end;
+      }
+
+      .form-group {
+        margin-bottom: 0;
+      }
+
+      label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+
+      .form-control {
+        border-radius: 4px;
+        border: 1px solid #ced4da;
+
+        &:focus {
+          border-color: #007bff;
+          box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+      }
+
+      .btn-group-toggle {
+        .btn {
+          padding: 0.375rem 0.75rem;
+          font-size: 0.875rem;
+
+          &.active {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+          }
+        }
+      }
+    }
+  }
+
+  .calendar-content {
+    flex: 1;
+    position: relative;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+
+      .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      p {
+        color: #495057;
+        font-size: 1.1rem;
+        margin: 0;
+      }
+    }
+
+    .error-state,
+    .empty-state {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      text-align: center;
+
+      .alert-danger {
+        max-width: 400px;
+        margin-bottom: 1rem;
+      }
+
+      .fa-exclamation-triangle,
+      .fa-calendar-times {
+        color: #dc3545;
+        margin-bottom: 0.5rem;
+      }
+
+      h4 {
+        color: #495057;
+        margin-bottom: 1rem;
+      }
+
+      .text-muted {
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+      }
+    }
+
+    .calendar-view {
+      height: 100%;
+      overflow-y: auto;
+
+      .cal-month-view,
+      .cal-week-view,
+      .cal-day-view {
+        height: 100%;
+      }
+    }
+
+    .calendar-legend {
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+
+      h6 {
+        margin: 0 0 0.75rem 0;
+        color: #495057;
+        font-weight: 600;
+      }
+
+      .legend-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+
+          .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: inline-block;
+          }
+
+          span {
+            font-size: 0.875rem;
+            color: #495057;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Angular Calendar Overrides
+::ng-deep .cal-month-view,
+::ng-deep .cal-week-view,
+::ng-deep .cal-day-view {
+  .cal-header {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+  }
+
+  .cal-cell {
+    border-color: #e9ecef;
+
+    &:hover {
+      background-color: #f8f9fa;
+    }
+  }
+
+  .cal-day-cell {
+    &.cal-today {
+      background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    &.cal-weekend {
+      background-color: rgba(108, 117, 125, 0.05);
+    }
+  }
+
+  .cal-event {
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .cal-event-title {
+      font-weight: 500;
+    }
+
+    .cal-event-actions {
+      .btn {
+        padding: 0.125rem 0.25rem;
+        margin-left: 0.25rem;
+      }
+    }
+  }
+
+  .cal-hour-segment {
+    &:hover {
+      background-color: rgba(0, 123, 255, 0.05);
+    }
+  }
+
+  .cal-day-current-time-indicator {
+    background-color: #007bff;
+  }
+
+  .cal-week-view .cal-hour-segment.cal-day-current-hour {
+    background-color: rgba(0, 123, 255, 0.05);
+  }
+
+  .cal-month-cell-content {
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    .cal-cell-top {
+      min-height: 20px;
+    }
+
+    .cal-day-number {
+      font-weight: 600;
+    }
+  }
+
+  .cal-open-day-events {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+
+    .cal-event-title {
+      font-size: 0.875rem;
+    }
+  }
+
+  .cal-tooltip {
+    background-color: #212529;
+    color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+    .tooltip-arrow {
+      border-top-color: #212529;
+    }
+  }
+}
+
+// Modal Styles - these would be in a separate modal component but included for this component
+::ng-deep .modal-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+
+  .modal-title {
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i {
+      color: #007bff;
+    }
+  }
+}
+
+::ng-deep .schedule-details {
+  .row {
+    margin-bottom: 1.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  h5 {
+    margin-bottom: 1rem;
+    color: #495057;
+    font-weight: 600;
+  }
+
+  dl.row {
+    dd {
+      margin-bottom: 0.5rem;
+
+      .badge {
+        &.badge-success {
+          background-color: #28a745;
+        }
+
+        &.badge-warning {
+          background-color: #ffc107;
+        }
+
+        &.badge-info {
+          background-color: #17a2b8;
+        }
+
+        &.badge-danger {
+          background-color: #dc3545;
+        }
+
+        &.badge-secondary {
+          background-color: #6c757d;
+        }
+      }
+
+      .progress {
+        height: 1.5rem;
+
+        .progress-bar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+
+  pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 1rem;
+    white-space: pre-wrap;
+  }
+}
+
+// Responsive Design
+@media (max-width: 1400px) {
+  .calendar-delivery-container {
+    padding: 0.75rem;
+
+    .calendar-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch;
+
+      .header-left,
+      .header-right {
+        justify-content: center;
+      }
+
+      .header-center {
+        order: -1;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-delivery-container {
+    height: auto;
+    min-height: calc(100vh - 120px);
+
+    .calendar-header {
+      .header-left {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+
+        .calendar-title {
+          font-size: 1.5rem;
+          text-align: center;
+        }
+
+        .view-controls .btn-group {
+          width: 100%;
+
+          .btn {
+            flex: 1;
+          }
+        }
+      }
+
+      .header-center .navigation-controls {
+        width: 100%;
+
+        .btn {
+          flex: 1;
+        }
+      }
+
+      .header-right {
+        flex-direction: column;
+
+        .btn {
+          justify-content: center;
+        }
+      }
+    }
+
+    .calendar-controls .filter-controls .form-row {
+      flex-direction: column;
+
+      .col-md-3,
+      .col-md-6 {
+        max-width: none;
+        margin-bottom: 1rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+
+    .calendar-legend .legend-items {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+
+  ::ng-deep .cal-month-view,
+  ::ng-deep .cal-week-view,
+  ::ng-deep .cal-day-view {
+    .cal-event {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+
+      .cal-event-actions {
+        display: none;
+      }
+    }
+  }
+}

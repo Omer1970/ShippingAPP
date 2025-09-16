@@ -1,0 +1,334 @@
+<div class="calendar-viewer-container">
+  <!-- Calendar Header -->
+  <div class="calendar-header" *ngIf="showViewControls || showMonthNavigation">
+    <div class="header-left">
+      <h2 class="calendar-title">
+        <i class="fas fa-calendar-alt"></i>
+        {{ getViewTitle() }}
+      </h2>
+
+      <div class="view-controls" *ngIf="showViewControls">
+        <div class="btn-group" role="group">
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Day"
+            (click)="setView('day')"
+            [disabled]="isLoading()">
+            Day
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Week"
+            (click)="setView('week')"
+            [disabled]="isLoading()">
+            Week
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Month"
+            (click)="setView('month')"
+            [disabled]="isLoading()">
+            Month
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center" *ngIf="showMonthNavigation">
+      <div class="navigation-controls">
+        <button
+          class="btn btn-outline-secondary"
+          (click)="previousView()"
+          [disabled]="isLoading()">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <button
+          class="btn btn-primary"
+          (click)="goToToday()"
+          [disabled]="isLoading()">
+          Today
+        </button>
+
+        <button
+          class="btn btn-outline-secondary"
+          (click)="nextView()"
+          [disabled]="isLoading()">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button
+        class="btn btn-outline-success"
+        (click)="refresh()"
+        [disabled]="isLoading()">
+        <i class="fas fa-sync-alt"></i>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Controls -->
+  <div class="calendar-controls" *ngIf="showFilters">
+    <div class="filter-controls">
+      <div class="form-row">
+        <div class="col-md-3" *ngIf="statusFilter !== null">
+          <label for="statusFilter">Status Filter</label>
+          <select
+            id="statusFilter"
+            class="form-control"
+            [(ngModel)]="statusFilter"
+            (change)="loadCalendarData()"
+            [disabled]="isLoading()">
+            <option value="all">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <div class="col-md-3" *ngIf="showTimeSlots">
+          <label>Display Options</label>
+          <div class="form-check">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              id="showTimeSlots"
+              [(ngModel)]="showTimeSlots"
+              (change)="updateCalendarEvents()"
+              [disabled]="isLoading()">
+            <label class="form-check-label" for="showTimeSlots">
+              Show Time Slots
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar Content -->
+  <div class="calendar-content">
+    <!-- Loading State -->
+    <div class="loading-overlay" *ngIf="isLoading()">
+      <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+      <p>Loading calendar data...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-state" *ngIf="hasError()">
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span *ngIf="getErrorMessage() | async as errorMessage">{{ errorMessage }}</span>
+        <span *ngIf="!(getErrorMessage() | async)">Failed to load calendar data. Please try again.</span>
+      </div>
+      <button class="btn btn-primary" (click)="refresh()">
+        <i class="fas fa-redo"></i> Retry
+      </button>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading() && !hasError() && !hasData()">
+      <div class="text-center">
+        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+        <h4>No schedules found</h4>
+        <p class="text-muted">There are no delivery schedules for the selected date range and filters.</p>
+      </div>
+    </div>
+
+    <!-- Calendar View -->
+    <div class="calendar-view" *ngIf="!isLoading() && !hasError() && hasData()">
+      <div [ngSwitch]="view">
+        <!-- Month View -->
+        <mwl-calendar-month-view
+          *ngSwitchCase="viewEnum.Month"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          [activeDayIsOpen]="activeDayIsOpen"
+          (dayClicked)="onDayClick($event.day)"
+          (eventClicked)="onEventClick($event.event)"
+          (eventTimesChanged)="onEventTimesChanged($event)">
+        </mwl-calendar-month-view>
+
+        <!-- Week View -->
+        <mwl-calendar-week-view
+          *ngSwitchCase="viewEnum.Week"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          (eventClicked)="onEventClick($event.event)"
+          (eventTimesChanged)="onEventTimesChanged($event)">
+        </mwl-calendar-week-view>
+
+        <!-- Day View -->
+        <mwl-calendar-day-view
+          *ngSwitchCase="viewEnum.Day"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          (eventClicked)="onEventClick($event.event)"
+          (eventTimesChanged)="onEventTimesChanged($event)">
+        </mwl-calendar-day-view>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="calendar-legend mt-3" *ngIf="showLegend && hasData()">
+    <h6>Legend</h6>
+    <div class="legend-items">
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #28a745;"></span>
+        <span>Completed Deliveries</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #007bff;"></span>
+        <span>Scheduled Deliveries</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #ffc107;"></span>
+        <span>In Progress Deliveries</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color" style="background-color: #dc3545;"></span>
+        <span>Cancelled Deliveries</span>
+      </div>
+      <div class="legend-item" *ngIf="showTimeSlots">
+        <span class="legend-color" style="background-color: #28a745; opacity: 0.5;"></span>
+        <span>Available Time Slots</span>
+      </div>
+      <div class="legend-item" *ngIf="showTimeSlots">
+        <span class="legend-color" style="background-color: #ffc107; opacity: 0.5;"></span>
+        <span>Limited Time Slots</span>
+      </div>
+      <div class="legend-item" *ngIf="showTimeSlots">
+        <span class="legend-color" style="background-color: #dc3545; opacity: 0.5;"></span>
+        <span>Full Time Slots</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail Modal -->
+<ng-template #modalContent let-data>
+  <div class="modal-header">
+    <h4 class="modal-title">
+      <ng-container *ngIf="selectedEvent && selectedEvent.meta.type === 'delivery'">
+        <i class="fas fa-truck"></i>
+        Delivery Schedule #{{ selectedEvent.meta.data.id }}
+      </ng-container>
+      <ng-container *ngIf="selectedEvent && selectedEvent.meta.type === 'time_slot'">
+        <i class="fas fa-clock"></i>
+        Time Slot - {{ selectedEvent.meta.data.slot_label }}
+      </ng-container>
+    </h4>
+    <button type="button" class="close" (click)="clearSelectedEvent()">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+
+  <div class="modal-body" *ngIf="selectedEvent">
+    <!-- Delivery Event Details -->
+    <div class="delivery-details" *ngIf="selectedEvent.meta.type === 'delivery'">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Delivery Information</h5>
+          <dl class="row">
+            <dt class="col-sm-4">Schedule ID:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.id }}</dd>
+
+            <dt class="col-sm-4">Shipment ID:</dt>
+            <dd class="col-sm-8">#{{ selectedEvent.meta.data.shipment_id }}</dd>
+
+            <dt class="col-sm-4">Driver:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.driver?.name || 'Unknown' }}</dd>
+
+            <dt class="col-sm-4">Delivery Date:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.delivery_date | date:'mediumDate' }}</dd>
+
+            <dt class="col-sm-4">Time Slot:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.time_slot }}</dd>
+
+            <dt class="col-sm-4">Duration:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.estimated_duration }} minutes</dd>
+
+            <dt class="col-sm-4">Distance:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.estimated_distance }} km</dd>
+          </dl>
+        </div>
+
+        <div class="col-md-6">
+          <h5>Route Information</h5>
+          <dl class="row">
+            <dt class="col-sm-4">Status:</dt>
+            <dd class="col-sm-8">
+              <span class="badge badge-{{ selectedEvent.meta.data.status === 'completed' ? 'success' :
+                              selectedEvent.meta.data.status === 'in_progress' ? 'warning' :
+                              selectedEvent.meta.data.status === 'cancelled' ? 'danger' : 'primary' }}">
+                {{ selectedEvent.meta.data.status | titlecase }}
+              </span>
+            </dd>
+
+            <dt class="col-sm-4">Route Order:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.route_order }}</dd>
+
+            <dt class="col-sm-4">Progress:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.progress_percentage }}%</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="selectedEvent.meta.data.notes">
+        <div class="col-12">
+          <h5>Notes</h5>
+          <p>{{ selectedEvent.meta.data.notes }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Time Slot Event Details -->
+    <div class="time-slot-details" *ngIf="selectedEvent.meta.type === 'time_slot'">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Time Slot Information</h5>
+          <dl class="row">
+            <dt class="col-sm-4">Slot ID:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.id }}</dd>
+
+            <dt class="col-sm-4">Driver:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.driver?.name || 'Unknown' }}</dd>
+
+            <dt class="col-sm-4">Date:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.slot_date | date:'mediumDate' }}</dd>
+
+            <dt class="col-sm-4">Time:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.start_time }} - {{ selectedEvent.meta.data.end_time }}</dd>
+
+            <dt class="col-sm-4">Capacity:</dt>
+            <dd class="col-sm-8">{{ selectedEvent.meta.data.booked }} / {{ selectedEvent.meta.data.capacity }}</dd>
+
+            <dt class="col-sm-4">Availability:</dt>
+            <dd class="col-sm-8">
+              <span class="badge badge-{{ selectedEvent.meta.data.availability === 'available' ? 'success' :
+                              selectedEvent.meta.data.availability === 'limited' ? 'warning' :
+                              selectedEvent.meta.data.availability === 'full' ? 'danger' : 'secondary' }}">
+                {{ selectedEvent.meta.data.availability | titlecase }}
+              </span>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="clearSelectedEvent()">
+      Close
+    </button>
+  </div>
+</ng-template>

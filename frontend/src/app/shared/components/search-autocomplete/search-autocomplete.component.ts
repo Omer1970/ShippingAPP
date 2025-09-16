@@ -1,4 +1,5 @@
 import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 
 import { 
@@ -10,7 +11,8 @@ import {
 @Component({
   selector: 'app-search-autocomplete',
   templateUrl: './search-autocomplete.component.html',
-  styleUrls: ['./search-autocomplete.component.scss']
+  styleUrls: ['./search-autocomplete.component.scss'],
+  imports: [CommonModule]
 })
 export class SearchAutocompleteComponent {
   @Input() suggestions: AutocompleteSuggestion[] = [];
@@ -66,7 +68,7 @@ export class SearchAutocompleteComponent {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (!this.containerElement?.nativeElement.contains(event.target as Node)) {
-      this.hideDropdown();
+      this.closeDropdown();
     }
   }
 
@@ -92,7 +94,7 @@ export class SearchAutocompleteComponent {
         }
         break;
       case 'Escape':
-        this.hideDropdown();
+        this.closeDropdown();
         break;
     }
   }
@@ -115,7 +117,7 @@ export class SearchAutocompleteComponent {
     
     // Hide dropdown if input is too short
     if (value.length < this.minCharacters && !this.showWhenEmpty) {
-      this.hideDropdown();
+      this.closeDropdown();
       return;
     }
     
@@ -133,7 +135,7 @@ export class SearchAutocompleteComponent {
   onInputBlur(): void {
     // Small delay to allow for click events on suggestions
     setTimeout(() => {
-      this.hideDropdown();
+      this.closeDropdown();
     }, 150);
   }
 
@@ -193,11 +195,11 @@ export class SearchAutocompleteComponent {
     this.highlightIndex = this.suggestions.indexOf(suggestion);
     this.suggestionSelected.emit(suggestion);
     this.updateInputValue(suggestion);
-    this.hideDropdown();
+    this.closeDropdown();
   }
 
   updateInputValue(suggestion: AutocompleteSuggestion): void {
-    this.inputValue = suggestion.name || suggestion.text || '';
+    this.inputValue = suggestion.name || '';
     this.typedQuery = this.inputValue;
   }
 
@@ -207,7 +209,7 @@ export class SearchAutocompleteComponent {
     this.highlightIndex = -1;
   }
 
-  hideDropdown(): void {
+  closeDropdown(): void {
     this.showDropdown = false;
     this.highlightIndex = -1;
   }
@@ -215,7 +217,7 @@ export class SearchAutocompleteComponent {
   clearInput(): void {
     this.inputValue = '';
     this.typedQuery = '';
-    this.hideDropdown();
+    this.closeDropdown();
     this.textChanged.emit('');
   }
 
@@ -227,10 +229,10 @@ export class SearchAutocompleteComponent {
 
   getSuggestionHighlight(suggestion: AutocompleteSuggestion): SearchHighlight {
     if (!this.highlightMatches || !this.typedQuery) {
-      return this.createHighlight(suggestion.name || suggestion.text || '');
+      return this.createHighlight(suggestion.name || '');
     }
     
-    const text = suggestion.name || suggestion.text || '';
+    const text = suggestion.name || '';
     const query = this.typedQuery.toLowerCase();
     const textLower = text.toLowerCase();
     const index = textLower.indexOf(query);
@@ -257,7 +259,7 @@ export class SearchAutocompleteComponent {
   reset(): void {
     this.inputValue = '';
     this.typedQuery = '';
-    this.hideDropdown();
+    this.closeDropdown();
     this.highlightIndex = -1;
     this.isListening = false;
   }

@@ -1,0 +1,345 @@
+<div class="calendar-delivery-container">
+  <div class="calendar-header">
+    <div class="header-left">
+      <h2 class="calendar-title">
+        <i class="fas fa-calendar-alt"></i>
+        {{ getViewTitle() | async }}
+      </h2>
+
+      <div class="view-controls">
+        <div class="btn-group" role="group">
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Day"
+            (click)="setView(viewEnum.Day)"
+            [disabled]="loadingState$ | async === 'loading'">
+            Day
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Week"
+            (click)="setView(viewEnum.Week)"
+            [disabled]="loadingState$ | async === 'loading'">
+            Week
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="view === viewEnum.Month"
+            (click)="setView(viewEnum.Month)"
+            [disabled]="loadingState$ | async === 'loading'">
+            Month
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="navigation-controls">
+        <button
+          class="btn btn-outline-secondary"
+          (click)="prevView()"
+          [disabled]="loadingState$ | async === 'loading'">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <button
+          class="btn btn-primary"
+          (click)="viewChange(new Date())"
+          [disabled]="loadingState$ | async === 'loading'">
+          Today
+        </button>
+
+        <button
+          class="btn btn-outline-secondary"
+          (click)="nextView()"
+          [disabled]="loadingState$ | async === 'loading'">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button
+        class="btn btn-outline-success"
+        (click)="refresh()"
+        [disabled]="loadingState$ | async === 'loading'">
+        <i class="fas fa-sync-alt"></i>
+        Refresh
+      </button>
+
+      <button
+        class="btn btn-primary"
+        (click)="openNewScheduleModal()"
+        [disabled]="loadingState$ | async === 'loading'">
+        <i class="fas fa-plus"></i>
+        New Schedule
+      </button>
+    </div>
+  </div>
+
+  <div class="calendar-controls">
+    <div class="filter-controls">
+      <div class="form-row">
+        <div class="col-md-3">
+          <label for="statusFilter">Status Filter</label>
+          <select
+            id="statusFilter"
+            class="form-control"
+            [(ngModel)]="selectedStatus"
+            (change)="onFilterChange()"
+            [disabled]="loadingState$ | async === 'loading'">
+            <option value="all">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="driverFilter">Driver Filter</label>
+          <select
+            id="driverFilter"
+            class="form-control"
+            [(ngModel)]="selectedDriverIds"
+            (change)="onFilterChange()"
+            [disabled]="loadingState$ | async === 'loading'"
+            multiple>
+            <option *ngFor="let driver of availableDrivers" [value]="driver.id">
+              {{ driver.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label>Display Options</label>
+          <div class="btn-group-toggle d-block" data-toggle="buttons">
+            <label class="btn btn-outline-secondary btn-sm mr-2" [class.active]="showTimeSlots">
+              <input
+                type="checkbox"
+                [(ngModel)]="showTimeSlots"
+                (change)="onFilterChange()"
+                [disabled]="loadingState$ | async === 'loading'">
+              Time Slots
+            </label>
+            <label class="btn btn-outline-secondary btn-sm mr-2" [class.active]="showRoutePlans">
+              <input
+                type="checkbox"
+                [(ngModel)]="showRoutePlans"
+                (change)="onFilterChange()"
+                [disabled]="loadingState$ | async === 'loading'">
+              Route Plans
+            </label>
+            <label class="btn btn-outline-secondary btn-sm" [class.active]="showDriverAvailability">
+              <input
+                type="checkbox"
+                [(ngModel)]="showDriverAvailability"
+                (change)="onFilterChange()"
+                [disabled]="loadingState$ | async === 'loading'">
+              Driver Availability
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calendar-content">
+    <div class="loading-overlay" *ngIf="loadingState$ | async === 'loading'">
+      <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+      <p>Loading calendar data...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-state" *ngIf="loadingState$ | async === 'failed'">
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        Failed to load calendar data. Please try again.
+      </div>
+      <button class="btn btn-primary" (click)="refresh()">
+        <i class="fas fa-redo"></i> Retry
+      </button>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="loadingState$ | async === 'succeeded' && calendarEvents.length === 0">
+      <div class="text-center">
+        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+        <h4>No schedules found</h4>
+        <p class="text-muted">There are no delivery schedules for the selected date range and filters.</p>
+        <button class="btn btn-primary" (click)="openNewScheduleModal()">
+          <i class="fas fa-calendar-plus"></i> Create New Schedule
+        </button>
+      </div>
+    </div>
+
+    <!-- Calendar View -->
+    <div class="calendar-view" *ngIf="loadingState$ | async === 'succeeded' && calendarEvents.length > 0">
+      <div [ngSwitch]="view">
+        <!-- Month View -->
+        <mwl-calendar-month-view
+          *ngSwitchCase="viewEnum.Month"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          [activeDayIsOpen]="activeDayIsOpen"
+          (dayClicked)="dayClicked($event.day)"
+          (eventClicked)="eventClicked($event.event)"
+          (eventTimesChanged)="eventTimesChanged($event)">
+        </mwl-calendar-month-view>
+
+        <!-- Week View -->
+        <mwl-calendar-week-view
+          *ngSwitchCase="viewEnum.Week"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          (eventClicked)="eventClicked($event.event)"
+          (eventTimesChanged)="eventTimesChanged($event)">
+        </mwl-calendar-week-view>
+
+        <!-- Day View -->
+        <mwl-calendar-day-view
+          *ngSwitchCase="viewEnum.Day"
+          [viewDate]="viewDate"
+          [events]="calendarEvents"
+          [refresh]="refresh$"
+          (eventClicked)="eventClicked($event.event)"
+          (eventTimesChanged)="eventTimesChanged($event)">
+        </mwl-calendar-day-view>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="calendar-legend mt-3">
+      <h6>Legend</h6>
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #28a745;"></span>
+          <span>Completed Deliveries</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #007bff;"></span>
+          <span>Scheduled Deliveries</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #ffc107;"></span>
+          <span>In Progress Deliveries</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #dc3545;"></span>
+          <span>Cancelled Deliveries</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #28a745; opacity: 0.5;"></span>
+          <span>Available Time Slots</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Detail Modal -->
+  <ng-template #modalContent let-data>
+    <div class="modal-header">
+      <h4 class="modal-title">
+        <ng-container *ngIf="selectedSchedule">
+          <i class="fas fa-truck"></i>
+          Delivery Schedule #{{ selectedSchedule.id }}
+        </ng-container>
+      </h4>
+      <button type="button" class="close" (click)="closeModal()">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+
+    <div class="modal-body" *ngIf="selectedSchedule">
+      <div class="schedule-details">
+        <div class="row">
+          <div class="col-md-6">
+            <h5>Delivery Information</h5>
+            <dl class="row">
+              <dt class="col-sm-4">Schedule ID:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.id }}</dd>
+
+              <dt class="col-sm-4">Shipment ID:</dt>
+              <dd class="col-sm-8">#{{ selectedSchedule.shipment_id }}</dd>
+
+              <dt class="col-sm-4">Driver:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.driver?.name || 'Unknown' }}</dd>
+
+              <dt class="col-sm-4">Delivery Date:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.delivery_date | date:'mediumDate' }}</dd>
+
+              <dt class="col-sm-4">Time Slot:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.time_slot }}</dd>
+
+              <dt class="col-sm-4">Duration:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.estimated_duration }} minutes</dd>
+
+              <dt class="col-sm-4">Distance:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.estimated_distance }} km</dd>
+            </dl>
+          </div>
+
+          <div class="col-md-6">
+            <h5>Route Information</h5>
+            <dl class="row">
+              <dt class="col-sm-4">Status:</dt>
+              <dd class="col-sm-8">
+                <span class="badge" [ngClass]="getStatusBadgeClass(selectedSchedule.status)">
+                  {{ selectedSchedule.status | titlecase }}
+                </span>
+              </dd>
+
+              <dt class="col-sm-4">Route Order:</dt>
+              <dd class="col-sm-8">{{ selectedSchedule.route_order }}</dd>
+
+              <dt class="col-sm-4">Progress:</dt>
+              <dd class="col-sm-8">{{ selectedSequence.current_step }} of {{ selectedSequence.total_steps }}</dd>
+
+              <dt class="col-sm-4">Progress %:</dt>
+              <dd class="col-sm-8">
+                <div class="progress">
+                  <div class="progress-bar"
+                       [style.width.%]="selectedSchedule.progress_percentage">
+                    {{ selectedSchedule.progress_percentage }}%
+                  </div>
+                </div>
+              </dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="row" *ngIf="selectedSchedule.notes">
+          <div class="col-12">
+            <h5>Notes</h5>
+            <p>{{ selectedSchedule.notes }}</p>
+          </div>
+        </div>
+
+        <div class="row" *ngIf="selectedSchedule.metadata">
+          <div class="col-12">
+            <h5>Additional Information</h5>
+            <pre>{{ selectedSchedule.metadata | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="closeModal()">
+        Close
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="viewRoute(selectedSchedule.route_plan_id)"
+        *ngIf="selectedSchedule.route_plan_id">
+        <i class="fas fa-map-route"></i>
+        View Route
+      </button>
+    </div>
+  </ng-template>
+</div>

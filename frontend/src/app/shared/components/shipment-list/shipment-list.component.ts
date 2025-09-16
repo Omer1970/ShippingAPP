@@ -119,11 +119,11 @@ export class ShipmentListComponent implements OnInit, OnDestroy {
     this.shipmentService.refreshShipment(shipment.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response) => {
+        next: (response: any) => {
           console.log('Shipment refreshed:', response);
           this.loadShipments();
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('Error refreshing shipment:', error);
           this.error = 'Failed to refresh shipment data.';
         }
@@ -147,7 +147,7 @@ export class ShipmentListComponent implements OnInit, OnDestroy {
   }
 
   formatWeight(weight?: number, units?: number): string {
-    return this.shipmentService.formatShipmentWeight(weight, units);
+    return this.shipmentService.formatShipmentWeight(weight || 0, units || 0);
   }
 
   getDeliveryUrgency(shipment: Shipment): string {

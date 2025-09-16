@@ -1,0 +1,451 @@
+<div class="route-optimizer">
+  <!-- Header -->
+  <div class="optimizer-header">
+    <div class="header-title">
+      <h1 class="optimizer-title">
+        <i class="fas fa-route"></i>
+        Route Optimizer
+      </h1>
+      <p class="optimizer-subtitle">Advanced delivery route planning and optimization</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="back-button" (click)="goBack()">
+        <i class="fas fa-arrow-left"></i>
+        Back to Schedule
+      </button>
+
+      <button class="schedule-button" (click)="goToSchedule()">
+        <i class="fas fa-calendar"></i>
+        View Schedule
+      </button>
+    </div>
+  </div>
+
+  <!-- Controls Panel -->
+  <div class="controls-panel">
+    <div class="control-groups">
+      <!-- Driver Selection -->
+      <div class="control-group">
+        <label class="control-label">Driver:</label>
+        <select class="control-select" [(ngModel)]="driverId" (change)="loadRouteData()">
+          <option [ngValue]="null">Select Driver</option>
+          <option [ngValue]="1">Driver #1</option>
+          <option [ngValue]="2">Driver #2</option>
+          <option [ngValue]="3">Driver #3</option>
+        </select>
+      </div>
+
+      <!-- Algorithm Selection -->
+      <div class="control-group">
+        <label class="control-label">Algorithm:</label>
+        <select class="control-select" [(ngModel)]="selectedAlgorithm">
+          <option *ngFor="let algo of optimizationConfig.algorithms" [value]="algo.id">
+            {{ algo.name }}
+          </option>
+        </select>
+        <div class="control-help" *ngIf="getSelectedAlgorithm()">
+          {{ getSelectedAlgorithm()?.description }}
+        </div>
+      </div>
+
+      <!-- Optimization Criteria -->
+      <div class="control-group">
+        <label class="control-label">Criteria:</label>
+        <select class="control-select" [(ngModel)]="optimizationCriteria">
+          <option *ngFor="let criteria of optimizationConfig.criteria" [value]="criteria.id">
+            {{ criteria.name }}
+          </option>
+        </select>
+        <div class="control-help" *ngIf="getSelectedCriteria()">
+          {{ getSelectedCriteria()?.description }}
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="control-group actions">
+        <button
+          class="optimize-button primary"
+          (click)="onOptimizeRoute()"
+          [disabled]="!canOptimize() || optimizationInProgress">
+          <i class="fas fa-magic" *ngIf="!optimizationInProgress"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="optimizationInProgress"></i>
+          {{ optimizationInProgress ? 'Optimizing...' : 'Optimize Route' }}
+        </button>
+
+        <button class="refresh-button secondary" (click)="onRefreshData()">
+          <i class="fas fa-sync-alt"></i>
+          Refresh
+        </button>
+
+        <button class="settings-button tertiary" (click)="onToggleAdvancedSettings()">
+          <i class="fas fa-cog"></i>
+          Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+    </div>
+    <p class="loading-text">Loading route optimization data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-state" *ngIf="hasError()">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <p class="error-text">{{ getErrorMessage() | async }}</p>
+    <button class="retry-button" (click)="onRefreshData()">
+      <i class="fas fa-sync-alt"></i> Retry
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="optimizer-content" *ngIf="!isLoading() && !hasError() && currentRoutePlan">
+    <!-- Route Overview -->
+    <div class="route-overview">
+      <div class="overview-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-route"></i>
+            Route Overview
+          </h3>
+          <div class="route-status" [ngClass]="'status-' + currentRoutePlan.route_status">
+            {{ getOptimizationStatus() }}
+          </div>
+        </div>
+
+        <div class="overview-content">
+          <div class="route-stats">
+            <div class="stat-item">
+              <div class="stat-icon">
+                <i class="fas fa-map-marker-alt"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-number">{{ currentRoutePlan.waypoints?.length || 0 }}</div>
+                <div class="stat-label">Total Stops</div>
+              </div>
+            </div>
+
+            <div class="stat-item">
+              <div class="stat-icon">
+                <i class="fas fa-road"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-number">{{ currentRoutePlan.total_distance }} km</div>
+                <div class="stat-label">Total Distance</div>
+              </div>
+            </div>
+
+            <div class="stat-item">
+              <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-number">{{ currentRoutePlan.estimated_time }} min</div>
+                <div class="stat-label">Estimated Time</div>
+              </div>
+            </div>
+
+            <div class="stat-item" *ngIf="currentRoutePlan.efficiency_score">
+              <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-number">{{ (currentRoutePlan.efficiency_score * 100).toFixed(1) }}%</div>
+                <div class="stat-label">Efficiency</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="efficiency-gauge" *ngIf="currentRoutePlan.efficiency_score">
+            <div class="gauge-container">
+              <div class="gauge-fill" [style.width.%]="currentRoutePlan.efficiency_score * 100"></div>
+            </div>
+            <div class="gauge-text">
+              <span class="gauge-value">{{ (currentRoutePlan.efficiency_score * 100).toFixed(1) }}%</span>
+              <span class="gauge-label">Route Efficiency</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimization Results -->
+    <div class="optimization-results" *ngIf="optimizationResult">
+      <div class="results-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-trophy"></i>
+            Optimization Results
+          </h3>
+          <div class="optimization-badge">
+            <i class="fas fa-check-circle"></i>
+            Optimization Complete
+          </div>
+        </div>
+
+        <div class="results-content">
+          <div class="improvement-metrics">
+            <div class="metric-row">
+              <div class="metric-item">
+                <div class="metric-label">Time Saved</div>
+                <div class="metric-value positive">
+                  <i class="fas fa-clock"></i>
+                  +{{ optimizationResult.optimization_summary.time_saved }} min
+                </div>
+              </div>
+
+              <div class="metric-item">
+                <div class="metric-label">Distance Reduced</div>
+                <div class="metric-value positive">
+                  <i class="fas fa-road"></i>
+                  -{{ optimizationResult.optimization_summary.distance_saved }} km
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-row">
+              <div class="metric-item">
+                <div class="metric-label">Efficiency Improvement</div>
+                <div class="metric-value positive">
+                  <i class="fas fa-chart-line"></i>
+                  +{{ (optimizationResult.optimization_summary.efficiency_improvement * 100).toFixed(1) }}%
+                </div>
+              </div>
+
+              <div class="metric-item">
+                <div class="metric-label">Fuel Savings</div>
+                <div class="metric-value positive">
+                  <i class="fas fa-gas-pump"></i>
+                  -{{ calculateFuelSavings(this.comparisonMetrics.fuelSaved) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-actions">
+            <button class="action-button primary" (click)="onApplyOptimization()">
+              <i class="fas fa-check"></i>
+              Apply Optimization
+            </button>
+
+            <button class="action-button secondary" (click)="onExportResults()">
+              <i class="fas fa-download"></i>
+              Export Results
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map Visualization -->
+    <div class="map-visualization" *ngIf="viewSettings.showMap">
+      <div class="map-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-map"></i>
+            Route Visualization
+          </h3>
+          <div class="map-controls">
+            <button class="map-control" (click)="zoomIn()" title="Zoom In">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button class="map-control" (click)="zoomOut()" title="Zoom Out">
+              <i class="fas fa-minus"></i>
+            </button>
+            <button class="map-control" (click)="centerMap()" title="Center Map">
+              <i class="fas fa-crosshairs"></i>
+            </button>
+            <button class="map-control" (click)="toggleTraffic()" title="Toggle Traffic">
+              <i class="fas fa-traffic-light"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="map-container">
+          <!-- Map Placeholder -->
+          <div class="map-placeholder" *ngIf="!viewSettings.showMap">
+            <div class="placeholder-content">
+              <i class="fas fa-map"></i>
+              <p>Map visualization available with external API</p>
+            </div>
+          </div>
+
+          <!-- Route Visualization -->
+          <div class="route-visualization" *ngIf="viewSettings.showMap && currentRoutePlan">
+            <div class="route-path">
+              <div
+                *ngFor="let waypoint of currentRoutePlan.waypoints; let i = index"
+                class="waypoint-item"
+                [ngClass]="{ 'optimized': optimizationResult, 'original': !optimizationResult }">
+                <div class="waypoint-marker" [ngClass]="'waypoint-' + (i + 1)">
+                  <span class="waypoint-number">{{ i + 1 }}</span>
+                </div>
+                <div class="waypoint-info">
+                  <div class="waypoint-address">{{ waypoint.address || 'Address ' + (i + 1) }}</div>
+                  <div class="waypoint-coordinates">
+                    {{ waypoint.latitude.toFixed(4) }}, {{ waypoint.longitude.toFixed(4) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alternative Routes -->
+    <div class="alternative-routes" *ngIf="alternativeRoutes.length > 1 && viewSettings.showComparisons">
+      <div class="alternatives-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-random"></i>
+            Alternative Routes
+          </h3>
+        </div>
+
+        <div class="alternatives-content">
+          <div class="route-comparison">
+            <div class="comparison-row header">
+              <div class="comparison-cell">Route</div>
+              <div class="comparison-cell">Distance</div>
+              <div class="comparison-cell">Time</div>
+              <div class="comparison-cell">Efficiency</div>
+              <div class="comparison-cell">Action</div>
+            </div>
+
+            <div
+              *ngFor="let route of alternativeRoutes; let i = index"
+              class="comparison-row"
+              [ngClass]="{ 'selected': route === currentRoutePlan }">
+
+              <div class="comparison-cell">
+                <div class="route-name">Route {{ i + 1 }}</div>
+                <div class="route-description">{{ route.optimization_algorithm || 'Original' | titlecase }}</div>
+              </div>
+
+              <div class="comparison-cell">
+                <span class="route-metric">{{ route.total_distance }} km</span>
+              </div>
+
+              <div class="comparison-cell">
+                <span class="route-metric">{{ route.estimated_time }} min</span>
+              </div>
+
+              <div class="comparison-cell">
+                <span class="route-metric" [ngClass]="getEfficiencyScoreClass(route.efficiency_score)">
+                  {{ (route.efficiency_score * 100).toFixed(1) }}%
+                </span>
+              </div>
+
+              <div class="comparison-cell">
+                <button
+                  class="select-route-button"
+                  (click)="onAlternativeSelected(route)"
+                  [disabled]="route === currentRoutePlan">
+                  <i class="fas fa-star" *ngIf="route === currentRoutePlan"></i>
+                  {{ route === currentRoutePlan ? 'Current' : 'Select' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <div class="advanced-settings" *ngIf="showAdvancedSettings">
+      <div class="settings-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-cog"></i>
+            Advanced Settings
+          </h3>
+        </div>
+
+        <div class="settings-content">
+          <div class="settings-grid">
+            <div class="setting-group">
+              <h4 class="setting-group-title">Route Constraints</h4>
+
+              <div class="setting-item">
+                <label class="setting-label">Max Distance (km):</label>
+                <input
+                  type="number"
+                  class="setting-input"
+                  [(ngModel)]="advancedSettings.maxDistance"
+                  min="1"
+                  max="1000">
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Max Time (hours):</label>
+                <input
+                  type="number"
+                  class="setting-input"
+                  [(ngModel)]="advancedSettings.maxTime"
+                  min="1"
+                  max="12">
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Traffic Model:</label>
+                <select class="setting-select" [(ngModel)]="advancedSettings.trafficModel">
+                  <option *ngFor="let model of optimizationConfig.trafficModels" [value]="model.id">
+                    {{ model.name }} - {{ model.description }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h4 class="setting-group-title">Route Preferences</h4>
+
+              <div class="setting-item">
+                <label class="setting-checkbox">
+                  <input type="checkbox" [(ngModel)]="advancedSettings.avoidTolls">
+                  <span class="checkmark"></span>
+                  Avoid Tolls
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-checkbox">
+                  <input type="checkbox" [(ngModel)]="advancedSettings.avoidHighways">
+                  <span class="checkmark"></span>
+                  Avoid Highways
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <button class="apply-settings-button primary" (click)="applyAdvancedSettings()">
+              <i class="fas fa-check"></i>
+              Apply Settings
+            </button>
+            <button class="reset-settings-button secondary" (click)="resetAdvancedSettings()">
+              <i class="fas fa-undo"></i>
+              Reset to Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Route Data -->
+  <div class="no-route-state" *ngIf="!isLoading() && !hasError() && !currentRoutePlan">
+    <div class="no-route-icon">
+      <i class="fas fa-route"></i>
+    </div>
+    <h3 class="no-route-title">No Route Data</h3>
+    <p class="no-route-text">Select a driver or provide time slots to optimize a route</p>
+  </div>
+</div>

@@ -1,4 +1,5 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 import { 
   Customer,
@@ -11,7 +12,8 @@ import {
 @Component({
   selector: 'app-customer-card',
   templateUrl: './customer-card.component.html',
-  styleUrls: ['./customer-card.component.scss']
+  styleUrls: ['./customer-card.component.scss'],
+  imports: [CommonModule]
 })
 export class CustomerCardComponent implements OnInit {
   @Input() customer: CustomerListItem | Customer | null = null;
