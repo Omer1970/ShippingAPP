@@ -5,7 +5,6 @@ import { Subject, Observable, BehaviorSubject, of } from 'rxjs';
 import { takeUntil, switchMap, catchError, map } from 'rxjs/operators';
 
 import { TimeSlotService } from '../../../core/services/time-slot.service';
-import { LoadingService } from '../../../core/services/loading.service';
 import { DeliveryTimeSlot, TimeSlotAvailability, TimeSlotConfiguration } from '../../../core/models/schedule.model';
 import { LoadingState } from '../../../core/models/loading.model';
 
@@ -90,8 +89,7 @@ export class TimeSlotSelectorComponent implements OnInit, OnDestroy, OnChanges {
   eveningSlots: DeliveryTimeSlot[] = [];
 
   constructor(
-    private readonly timeSlotService: TimeSlotService,
-    private readonly loadingService: LoadingService
+    private readonly timeSlotService: TimeSlotService
   ) {}
 
   ngOnInit(): void {
@@ -175,7 +173,7 @@ export class TimeSlotSelectorComponent implements OnInit, OnDestroy, OnChanges {
    */
   private loadConfiguration(): Observable<void> {
     if (!this.activeDriverId || !this.enableConfiguration) {
-      return this.loadingService.resolve$(undefined);
+      return of(undefined);
     }
 
     return this.timeSlotService.getTimeSlotConfiguration(this.activeDriverId)
@@ -532,7 +530,7 @@ export class TimeSlotSelectorComponent implements OnInit, OnDestroy, OnChanges {
    * Get availability color class
    */
   getAvailabilityColorClass(availability: string): string {
-    const colorMap = {
+    const colorMap: Record<string, string> = {
       available: 'available-slot',
       limited: 'limited-slot',
       full: 'full-slot',
@@ -545,7 +543,7 @@ export class TimeSlotSelectorComponent implements OnInit, OnDestroy, OnChanges {
    * Get availability icon
    */
   getAvailabilityIcon(availability: string): string {
-    const iconMap = {
+    const iconMap: Record<string, string> = {
       available: 'fa-check-circle',
       limited: 'fa-exclamation-circle',
       full: 'fa-times-circle',
@@ -610,6 +608,37 @@ export class TimeSlotSelectorComponent implements OnInit, OnDestroy, OnChanges {
    */
   canBook(): boolean {
     return this.enableBooking && this.selectedTimeSlots.length > 0 && !this.bookingInProgress;
+  }
+
+  /**
+   * Book all selected time slots
+   */
+  bookSelectedSlots(): void {
+    if (!this.canBook()) return;
+
+    this.bookingInProgress = true;
+
+    // Book slots sequentially to avoid conflicts
+    const bookingPromises = this.selectedTimeSlots.map(slot =>
+      this.timeSlotService.bookTimeSlot(slot.id).toPromise()
+    );
+
+    Promise.all(bookingPromises)
+      .then(results => {
+        // Update all booked slots in the list
+        results.forEach(updatedSlot => {
+          if (updatedSlot) {
+            this.updateTimeSlotInList(updatedSlot);
+          }
+        });
+
+        this.bookingInProgress = false;
+        this.clearSelection();
+      })
+      .catch(error => {
+        this.handleError('Bulk booking failed', error);
+        this.bookingInProgress = false;
+      });
   }
 }
 

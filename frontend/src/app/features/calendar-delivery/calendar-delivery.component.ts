@@ -63,7 +63,8 @@ export class CalendarDeliveryComponent implements OnInit, OnDestroy {
     private readonly calendarService: CalendarService,
     private readonly timeSlotService: TimeSlotService,
     private readonly routeService: RouteService,
-    private readonly loadingService: LoadingService
+    private readonly loadingService: LoadingService,
+    private readonly overlayService: any // TODO: Replace with proper OverlayService type
   ) {}
 
   ngOnInit(): void {

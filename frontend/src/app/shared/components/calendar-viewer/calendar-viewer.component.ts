@@ -115,6 +115,10 @@ export class CalendarViewerComponent implements OnInit, OnDestroy, OnChanges {
   eventGrouping: 'none' | 'driver' | 'status' = 'none';
   timeIndicators: CalendarEvent[] = []; // FullCalendar-style time indicators
 
+  // Auto refresh configuration
+  autoRefresh = true;
+  refreshInterval = 30000; // 30 seconds
+
   // Map configuration for FullCalendar
   mapConfig = {
     center: { lat: 51.509865, lng: -0.118092 }, // London

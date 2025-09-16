@@ -1,13 +1,12 @@
 import { Component, OnInit, OnDestroy, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, Observable, BehaviorSubject, of } from 'rxjs';
+import { Subject, Observable, BehaviorSubject, of, forkJoin } from 'rxjs';
 import { takeUntil, switchMap, catchError, map } from 'rxjs/operators';
 
 import { CalendarService } from '../../../core/services/calendar.service';
 import { RouteService } from '../../../core/services/route.service';
 import { TimeSlotService } from '../../../core/services/time-slot.service';
-import { LoadingService } from '../../../core/services/loading.service';
 import {
   DeliverySchedule,
   DeliveryTimeSlot,
@@ -114,8 +113,7 @@ export class DeliveryPlannerComponent implements OnInit, OnDestroy, OnChanges {
   constructor(
     private readonly calendarService: CalendarService,
     private readonly routeService: RouteService,
-    private readonly timeSlotService: TimeSlotService,
-    private readonly loadingService: LoadingService
+    private readonly timeSlotService: TimeSlotService
   ) {}
 
   ngOnInit(): void {
@@ -187,7 +185,7 @@ export class DeliveryPlannerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.loadingService.combine$(loadRequests)
+    forkJoin(loadRequests)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error) => {
@@ -242,7 +240,7 @@ export class DeliveryPlannerComponent implements OnInit, OnDestroy, OnChanges {
    * Load calendar data
    */
   private loadCalendarData(): Observable<any> {
-    if (!this.dateRange) return this.loadingService.resolve$(null);
+    if (!this.dateRange) return of(null);
 
     const params = {
       start_date: this.dateRange.start.toISOString().split('T')[0],
@@ -263,7 +261,7 @@ export class DeliveryPlannerComponent implements OnInit, OnDestroy, OnChanges {
    * Load time slot data
    */
   private loadTimeSlotData(): Observable<any> {
-    if (!this.dateRange) return this.loadingService.resolve$(null);
+    if (!this.dateRange) return of(null);
 
     return this.timeSlotService.getTimeSlotAvailability(
       this.activeDriverId!,
@@ -302,12 +300,11 @@ export class DeliveryPlannerComponent implements OnInit, OnDestroy, OnChanges {
    * Check for scheduling conflicts
    */
   private checkForConflicts(): Observable<any> {
-    if (!this.dateRange) return this.loadingService.resolve$(null);
+    if (!this.dateRange || !this.activeDriverId) return of(null);
 
-    const startDate = this.dateRange.start.toISOString().split('T')[0];
-    const endDate = this.dateRange.end.toISOString().split('T')[0];
+    const currentDate = this.currentDate.toISOString().split('T')[0];
 
-    return this.calendarService.checkSchedulingConflicts(this.activeDriverId!, startDate, endDate)
+    return this.calendarService.getScheduleConflicts(currentDate, [this.activeDriverId])
       .pipe(
         map(conflicts => {
           this.scheduleConflicts = conflicts;

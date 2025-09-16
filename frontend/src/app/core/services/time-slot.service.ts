@@ -232,6 +232,59 @@ export class TimeSlotService {
   }
 
   /**
+   * Get time slot availability for a driver
+   */
+  getTimeSlotAvailability(
+    driverId: number,
+    startDate: Date,
+    endDate: Date,
+    availability?: string
+  ): Observable<TimeSlotAvailability> {
+    const params: any = {
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0]
+    };
+
+    if (availability && availability !== 'all') {
+      params.availability = availability;
+    }
+
+    return this.http.get<ApiResponse>(`${this.apiUrl}/${driverId}/availability`, { params })
+      .pipe(
+        map(response => {
+          if (response.success && response.data) {
+            return response.data as TimeSlotAvailability;
+          }
+          throw new Error('Failed to get time slot availability');
+        }),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Get time slot configuration for a driver
+   */
+  getTimeSlotConfiguration(driverId: number): Observable<any> {
+    return this.getDriverTimeSlotConfig(driverId);
+  }
+
+  /**
+   * Get detailed information about a specific time slot
+   */
+  checkTimeSlotDetails(slotId: number): Observable<DeliveryTimeSlot> {
+    return this.http.get<ApiResponse>(`${this.apiUrl}/${slotId}/details`)
+      .pipe(
+        map(response => {
+          if (response.success && response.data) {
+            return response.data.data as DeliveryTimeSlot;
+          }
+          throw new Error('Time slot details not found');
+        }),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
    * Check time slot availability
    */
   checkAvailability(
